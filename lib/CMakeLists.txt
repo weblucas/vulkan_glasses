@@ -17,5 +17,9 @@ include_directories( include )
 add_library(${PROJECT_NAME}_lib "src/VulkanTools.cc" "src/vulkan_renderer.cc")
 target_link_libraries(${PROJECT_NAME}_lib  ${OpenCV_LIBRARIES}  ${Vulkan_LIBRARY} )
 
+if(COMPILE_SHADERS)
+    add_dependencies(${PROJECT_NAME}_lib shaders)
+endif(COMPILE_SHADERS)
+
 
 

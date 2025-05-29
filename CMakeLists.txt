@@ -24,7 +24,46 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/bin" CACHE PATH "Install path pref
 option(BUILD_WITH_ROS1 "Build with ROS 1 (catkin) extensions" OFF)
 option(BUILD_WITH_ROS2 "Build with ROS 2 (ament) extensions" OFF)
 option(BUILD_WITH_CSV_PROCESSOR "Build with CSV Processor application" OFF)
+option(COMPILE_SHADERS "Build with CSV Processor application" ON)
 
+if(COMPILE_SHADERS)
+    # Find the glslangValidator executable
+    find_program(GLSLANG_VALIDATOR glslangValidator)
+    if(NOT GLSLANG_VALIDATOR)
+        message(FATAL_ERROR "glslangValidator not found. Make sure it's in your PATH or Vulkan SDK is properly installed.")
+    endif()
+
+    # Define the input shader files
+set(SHADER_VERT_FILE shaders/vrglasses4robots_shader.vert)
+set(SHADER_FRAG_FILE shaders/vrglasses4robots_shader.frag)
+
+# Define the output SPIR-V files
+set(SHADER_VERT_SPV ${CMAKE_BINARY_DIR}/vrglasses4robots_shader.vert.spv)
+set(SHADER_FRAG_SPV ${CMAKE_BINARY_DIR}/vrglasses4robots_shader.frag.spv)
+
+
+
+# Custom command to compile the vertex shader
+add_custom_command(
+    OUTPUT ${SHADER_VERT_SPV}
+    COMMAND ${GLSLANG_VALIDATOR} -V ${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_VERT_FILE} -o ${SHADER_VERT_SPV}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_VERT_FILE}
+    COMMENT "Compiling vertex shader: ${SHADER_VERT_FILE}"
+)
+
+# Custom command to compile the fragment shader
+add_custom_command(
+    OUTPUT ${SHADER_FRAG_SPV}
+    COMMAND ${GLSLANG_VALIDATOR} -V ${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_FRAG_FILE} -o ${SHADER_FRAG_SPV}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_FRAG_FILE}
+    COMMENT "Compiling fragment shader: ${SHADER_FRAG_FILE}"
+)
+
+# Create a custom target to ensure shaders are compiled before other targets
+add_custom_target(shaders ALL DEPENDS ${SHADER_VERT_SPV} ${SHADER_FRAG_SPV})
+
+
+endif(COMPILE_SHADERS)
 
 
 add_subdirectory(lib)
