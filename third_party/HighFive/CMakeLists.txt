@@ -95,10 +95,12 @@ include(${PROJECT_SOURCE_DIR}/CMake/HighFiveTargetDeps.cmake)
 # Set-up HighFive to be used in 3rd party project using exports. Create a HighFive target
 include(${PROJECT_SOURCE_DIR}/CMake/HighFiveTargetExport.cmake)
 
-# Installation of headers (HighFive is only interface)
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-  DESTINATION "include"
-  PATTERN "*.in" EXCLUDE)
+# if (NOT CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+# # Installation of headers (HighFive is only interface)
+#   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+#     DESTINATION "include"
+#     PATTERN "*.in" EXCLUDE)
+# endif()
 
 # Preparing local building (tests, examples)
 # ------------------------------------------
