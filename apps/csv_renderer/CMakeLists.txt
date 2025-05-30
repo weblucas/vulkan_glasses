@@ -28,7 +28,7 @@ target_include_directories(${PROJECT_NAME}_csv_renderer PRIVATE ${CMAKE_SOURCE_D
 target_link_libraries(${PROJECT_NAME}_csv_renderer glog gflags HighFive ${OpenCV_LIBRARIES} Boost::filesystem ${Vulkan_LIBRARY} ${PROJECT_NAME}_lib)
 
 install(TARGETS ${PROJECT_NAME}_csv_renderer
-    RUNTIME DESTINATION bin)
+    RUNTIME DESTINATION .)
 
 file(GLOB SHADERS "shaders/*.spv")
 install(FILES ${SHADERS} DESTINATION shaders)
