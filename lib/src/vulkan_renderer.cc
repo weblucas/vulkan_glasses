@@ -154,7 +154,16 @@ void vrglasses_for_robots::VulkanRenderer::initVulkan(bool enableValidation) {
   std::vector<VkPhysicalDevice> physicalDevices(deviceCount);
   VK_CHECK_RESULT(vkEnumeratePhysicalDevices(instance, &deviceCount,
                                              physicalDevices.data()));
+  // Select the discrete GPU if available, otherwise fallback to the first device (usually onboard)
   physicalDevice = physicalDevices[0];
+  for (const auto& device : physicalDevices) {
+    VkPhysicalDeviceProperties props;
+    vkGetPhysicalDeviceProperties(device, &props);
+    if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+      physicalDevice = device;
+      break;
+    }
+  }
 
   VkPhysicalDeviceProperties deviceProperties;
   vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
