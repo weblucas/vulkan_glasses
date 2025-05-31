@@ -1,6 +1,6 @@
 build
 bin
-tests/test_project
+example/output_temp
 .idea
 
 .vscode/
