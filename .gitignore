@@ -1,4 +1,5 @@
 build
+bin
 tests/test_project
 .idea
 
