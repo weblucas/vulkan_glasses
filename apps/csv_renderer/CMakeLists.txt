@@ -30,5 +30,4 @@ target_link_libraries(${PROJECT_NAME}_csv_renderer glog gflags HighFive ${OpenCV
 install(TARGETS ${PROJECT_NAME}_csv_renderer
     RUNTIME DESTINATION .)
 
-file(GLOB SHADERS "shaders/*.spv")
-install(FILES ${SHADERS} DESTINATION shaders)
+

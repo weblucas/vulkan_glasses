@@ -61,7 +61,7 @@ add_custom_command(
 
 # Create a custom target to ensure shaders are compiled before other targets
 add_custom_target(shaders ALL DEPENDS ${SHADER_VERT_SPV} ${SHADER_FRAG_SPV})
-
+install(FILES ${SHADER_VERT_SPV} ${SHADER_FRAG_SPV} DESTINATION shaders)
 
 endif(COMPILE_SHADERS)
 
