@@ -1,0 +1,11 @@
+
+newmtl texture
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Tr 1.000000
+illum 1
+Ns 0.000000
+map_Kd irchel140821-merged_semantic-rgbs.png
+
+

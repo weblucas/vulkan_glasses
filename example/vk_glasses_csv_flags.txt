@@ -9,9 +9,9 @@
 --output_w=752
 --mesh_obj_file=
 --mesh_texture_file=
---model_folder=../example/
---model_list_file=../example/irchel1408/model_def_list.txt
---model_pose_file=../example/irchel1408/model_poses_list.txt
+--model_folder=../example/models
+--model_list_file=../example/scene_irchel140821_and_four_capsules/model_def_list.txt
+--model_pose_file=../example/scene_irchel140821_and_four_capsules/model_poses_list.txt
 --ortho=false
 --pose_file=../example/image_poses.txt
 --shader_folder=./shaders
