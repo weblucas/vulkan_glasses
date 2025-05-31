@@ -1,0 +1,4 @@
+irchel140821;irchel_park_zurich_14_08_21/irchel140821-merged_simplified_3d_mesh.obj;irchel_park_zurich_14_08_21/irchel140821-merged_semantic-rgbs.png
+capsule;capsule/capsule.obj;capsule/capsule0.jpg
+
+
