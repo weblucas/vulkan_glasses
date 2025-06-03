@@ -1243,9 +1243,6 @@ vrglasses_for_robots::VulkanRenderer::VulkanRenderer(
   shader_frag_spv_ =
       (shader_folder / "vrglasses4robots_shader.frag.spv").string();
 
-  // shader_vert_spv_(shader_vert_spv),
-  //    shader_frag_spv_(shader_frag_spv)
-  // shader_spv_folder
 
   initVulkan(true);
 
@@ -1269,11 +1266,6 @@ void vrglasses_for_robots::VulkanRenderer::buildPerpectiveProjection(
     float n = near;
     float f = far;
 
-    //  // set the viewport parameters
-    //  viewport[0] = l;
-    //  viewport[1] = b;
-    //  viewport[2] = r - l;
-    //  viewport[3] = t - b;
 
     // construct an orthographic matrix which maps from projected coordinates to
     // normalized device coordinates in the range
@@ -1302,16 +1294,6 @@ void vrglasses_for_robots::VulkanRenderer::buildPerpectiveProjection(
     matProjection[3][2] = n * f;
     matProjection[2][3] = -1.0;
 
-    //    matCVProjection = glm::mat4(0);
-    //    matCVProjection[0][0] = alpha;
-    //    matCVProjection[1][0] = skew;
-    //    matCVProjection[2][0] = u0;
-    //    matCVProjection[1][1] = beta;
-    //    matCVProjection[2][1] = v0;
-    //    matCVProjection[2][2] = 1;
-    //    matCVProjection[3][2] = 0;
-    //    matCVProjection[2][3] = 1;
-    //    matCVProjection[3][3] = 1;
 
     // resulting OpenGL frustum is the product of the orthographic
     // mapping to normalized device coordinates and the augmented camera intrinsic
@@ -1347,22 +1329,6 @@ void vrglasses_for_robots::VulkanRenderer::buildOrthographicProjection(
     orthographic_projection_matrix = clip * ortho;
 }
 
-//void vrglasses_for_robots::VulkanRenderer::setCamera(float p_focal_u,
-//                                                     float p_focal_v,
-//                                                     float p_center_u,
-//                                                     float p_center_v) {
-//  glm::mat4 mv = glm::mat4(1.0); // convert between opencv to opengl camera
-//  mv[1][1] = 1.0;
-//  mv[2][2] = -1.0;
-
-//  glm::mat4 projection, perpective;
-
-//  buildOpenglProjectionFromIntrinsics(perpective, projection, projection_cv_,
-//                                      width_, height_, p_focal_u, p_focal_v, 0,
-//                                      p_center_u, p_center_v, near_, far_);
-//  vp_cv_ = perpective * mv;
-//  //
-//}
 
 void vrglasses_for_robots::VulkanRenderer::setCamera(glm::mat4 mvp) {
   vp_cv_ = mvp;
