@@ -1,5 +1,7 @@
 # vulkan_glasses
 Fast Renderer for models with baked illumination or directly from photogrammetry
+For ROS (Robot Operating System) support, which is a flexible framework for writing robot software, use https://github.com/VIS4ROB-lab/vulkan_glasses_for_robots.
+It is the same library but integrated with ros simulation. The scene definition works in both softwares.
 
 ## Usage
 
