@@ -46,8 +46,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugMessageCallback(
 }
 
 struct Vertex {
-    glm::vec3 pos;
-    //glm::vec3 color;
+    glm::vec3 pos;    
     glm::vec2 texCoord;
 
     static VkVertexInputBindingDescription getBindingDescription() {
@@ -67,11 +66,6 @@ struct Vertex {
         attributeDescriptions[0].location = 0;
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-//        attributeDescriptions[1].binding = 0;
-//        attributeDescriptions[1].location = 1;
-//        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-//        attributeDescriptions[1].offset = offsetof(Vertex, color);
 
         attributeDescriptions[1].binding = 0;
         attributeDescriptions[1].location = 1;
@@ -264,8 +258,7 @@ class VulkanRenderer {
       const std::string& shader_spv_folder
       );
 
-//  void setCamera(
-//      float p_focal_u, float p_focal_v, float p_center_u, float p_center_v);
+
   void setCamera(glm::mat4 mvp);
 
   //
@@ -293,8 +286,6 @@ class VulkanRenderer {
 
   ~VulkanRenderer();
 
-  //void loadMeshs(const std::string &filename_model_obj);
-  //bool loadVertex(const std::string &filename_model_obj);
   bool loadVertex(const size_t model_idx);
 
 };
