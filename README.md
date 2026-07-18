@@ -13,7 +13,6 @@ The core library requires:
 - OpenCV (`core`, `highgui`, `imgproc`)
 - glog, gflags
 - glm
-- Boost (`filesystem`, `system`)
 
 The optional CSV renderer application (`BUILD_WITH_CSV_PROCESSOR`) and the `.h5`
 image viewer (`BUILD_WITH_H5_VIEWER`) additionally require HDF5.
@@ -25,10 +24,9 @@ On Ubuntu these can be installed with:
 sudo apt-get install -y \
     libvulkan-dev glslang-tools \
     libeigen3-dev libopencv-dev \
-    libgoogle-glog-dev libgflags-dev libglm-dev \
-    libboost-filesystem-dev libboost-system-dev
+    libgoogle-glog-dev libgflags-dev libglm-dev
 
-# extra, only for the CSV renderer application
+# extra, only for the CSV renderer and the .h5 viewer applications
 sudo apt-get install -y libhdf5-dev
 ```
 

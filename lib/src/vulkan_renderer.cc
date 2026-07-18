@@ -6,8 +6,8 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
-#include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
+#include <string_utils.h>
+#include <filesystem>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <opencv2/imgproc.hpp>
@@ -1236,8 +1236,8 @@ vrglasses_for_robots::VulkanRenderer::VulkanRenderer(
     : width_(width), height_(height), far_(far), near_(near) {
   //std::cout << "Running headless rendering example\n";
 
-  boost::filesystem::path shader_folder =
-      boost::filesystem::path(shader_spv_folder);
+  std::filesystem::path shader_folder =
+      std::filesystem::path(shader_spv_folder);
   shader_vert_spv_ =
       (shader_folder / "vrglasses4robots_shader.vert.spv").string();
   shader_frag_spv_ =
@@ -1427,35 +1427,34 @@ bool vrglasses_for_robots::VulkanRenderer::loadMesh(
 bool vrglasses_for_robots::VulkanRenderer::loadMeshs(
     const std::string &model_folder, const std::string &model_list) {
 
-  boost::filesystem::path folder = boost::filesystem::path(model_folder);
+  std::filesystem::path folder = std::filesystem::path(model_folder);
   std::vector<std::string> ids;
   std::vector<std::string> objs;
   std::vector<std::string> texs;
 
-  if (boost::filesystem::exists(model_list)) {
+  if (std::filesystem::exists(model_list)) {
     std::ifstream file(model_list.c_str());
     if (file.is_open()) {
       std::string line;
 
       while (std::getline(file, line)) {
-        boost::trim(line);
+        line = vg_str::trim(line);
         if (line.empty())
           continue;
 
-        std::vector<std::string> strs;
-        boost::split(strs, line, boost::is_any_of(";"));
+        std::vector<std::string> strs = vg_str::split(line, ';');
 
         models_.push_back(ThreeDModel());
-        models_.back().name = boost::trim_copy(strs[0]);
-        models_.back().obj_file = (folder / boost::trim_copy(strs[1])).string();
-        models_.back().texture_file = (folder / boost::trim_copy(strs[2])).string();
+        models_.back().name = vg_str::trim(strs[0]);
+        models_.back().obj_file = (folder / vg_str::trim(strs[1])).string();
+        models_.back().texture_file = (folder / vg_str::trim(strs[2])).string();
         models_index_[models_.back().name] = models_.size() - 1;
 
-        if (!boost::filesystem::exists(models_.back().obj_file)) {
+        if (!std::filesystem::exists(models_.back().obj_file)) {
           throw std::invalid_argument("the file does not exit: " +
                                       models_.back().obj_file);
         }
-        if (!boost::filesystem::exists(models_.back().texture_file)) {
+        if (!std::filesystem::exists(models_.back().texture_file)) {
           throw std::invalid_argument("the file does not exit: " +
                                       models_.back().texture_file);
         }
@@ -1609,8 +1608,7 @@ void vrglasses_for_robots::VulkanRenderer::copyVertex() {
 }
 
 glm::mat4 parsePose(std::string pose_text) {
-  std::vector<std::string> strs;
-  boost::split(strs, pose_text, boost::is_any_of(" "));
+  std::vector<std::string> strs = vg_str::split(pose_text, ' ');
   glm::mat4 result = glm::translate(
       glm::mat4(1.0),
       glm::vec3(std::stod(strs[0]), std::stod(strs[1]), std::stod(strs[2])));
@@ -1621,18 +1619,17 @@ glm::mat4 parsePose(std::string pose_text) {
 bool vrglasses_for_robots::VulkanRenderer::loadScene(
     const std::string &scene_file) {
 
-  if (boost::filesystem::exists(scene_file)) {
+  if (std::filesystem::exists(scene_file)) {
     std::ifstream file(scene_file.c_str());
     if (file.is_open()) {
       std::string line;
 
       while (std::getline(file, line)) {
-        boost::trim(line);
+        line = vg_str::trim(line);
         if (line.empty())
           continue;
 
-        std::vector<std::string> strs;
-        boost::split(strs, line, boost::is_any_of(";"));
+        std::vector<std::string> strs = vg_str::split(line, ';');
         scene_items_.push_back(SceneItem());
         scene_items_.back().model_name = strs[0];
         scene_items_.back().T_World2Model = parsePose(strs[1]);

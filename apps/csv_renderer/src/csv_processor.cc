@@ -2,18 +2,17 @@
 #include <iostream>
 
 #include <opencv2/highgui.hpp>
-#include <boost/tokenizer.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/algorithm/string.hpp>
+#include <stdexcept>
+#include <vector>
 #include <gflags/gflags.h>
 #include <glm/gtc/matrix_inverse.hpp>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 
-
 #include <csv_processor.h>
-#include <hdf5_utils.h>
+#include <h5_dataset.h>
+#include <string_utils.h>
 
 ///general arguments
 //poses of the images to be produced
@@ -67,8 +66,8 @@ DEFINE_string(model_pose_file, "", "compiled shader folders"); // data_folder/ir
 
 bool CSVProcessor::initialization(
     ) { //const std::string& csv_pose_file, const std::string& output_folder_path
-    if (!boost::filesystem::exists(FLAGS_output_folder_path)) {
-        if (!boost::filesystem::create_directories(FLAGS_output_folder_path)) {
+    if (!std::filesystem::exists(FLAGS_output_folder_path)) {
+        if (!std::filesystem::create_directories(FLAGS_output_folder_path)) {
             LOG(ERROR) << "the output folder could not be created :"
                        << FLAGS_output_folder_path.c_str();
             return false;
@@ -101,9 +100,9 @@ bool CSVProcessor::initialization(
         // is written only after the frame is successfully saved (see runHeadless),
         // so this file is an accurate record of completed renders and can be used
         // to resume a preempted process.
-        boost::filesystem::path pose_out_path = output_folder_ / "image_poses.csv";
+        std::filesystem::path pose_out_path = output_folder_ / "image_poses.csv";
 
-        if (boost::filesystem::exists(pose_out_path))
+        if (std::filesystem::exists(pose_out_path))
         {
             // Continue an existing render: keep the prior records and append the
             // frames that are not yet recorded (resume is always active; the
@@ -204,15 +203,8 @@ void CSVProcessor::loadRecordedIds(const std::string& csv_path)
 
 void CSVProcessor::parseLine(std::string line,std::vector<std::string>& vec)
 {
-    boost::tokenizer<boost::escaped_list_separator<char> > tk(
-        line, boost::escaped_list_separator<char>('\\', ',', '\"'));
-    for (boost::tokenizer<boost::escaped_list_separator<char> >::iterator i(tk.begin());
-         i!=tk.end();++i)
-    {
-        std::string curr = *i;
-        boost::trim(curr);
-        vec.push_back(curr);
-    }
+    for (const std::string& field : vg_str::split(line, ','))
+        vec.push_back(vg_str::trim(field));
 }
 
 void CSVProcessor::initIntrinsics()
@@ -255,9 +247,14 @@ double protected_double_cast(std::string str)
 {
     try
     {
-        return boost::lexical_cast<double>(str);
+        size_t consumed = 0;
+        double value = std::stod(str, &consumed);
+        // Reject trailing garbage to match boost::lexical_cast's strictness.
+        if (consumed != str.size())
+            throw std::invalid_argument("trailing characters");
+        return value;
     }
-    catch(boost::bad_lexical_cast& e)
+    catch(const std::exception& e)
     {
         LOG(INFO) << "!!"<<  "cast issue: " << e.what() << " #" << str <<"#!!";
         throw std::runtime_error("cast issue");
@@ -302,8 +299,8 @@ void CSVProcessor::runHeadless()
             const bool recorded = recorded_ids_.count(id) > 0;
             if (recorded)
             {
-                boost::filesystem::path h5_path = output_folder_ / (id + ".h5");
-                if (boost::filesystem::exists(h5_path))
+                std::filesystem::path h5_path = output_folder_ / (id + ".h5");
+                if (std::filesystem::exists(h5_path))
                     continue;  // already rendered and present: never re-render
                 if (!FLAGS_render_missing_images)
                     continue;  // recorded but missing, and re-render disabled
@@ -442,85 +439,21 @@ void CSVProcessor::renderPose(glm::vec3 position, glm::quat orientation, cv::Mat
 
 void CSVProcessor::saveHdf5(std::string id, cv::Mat &depth_map, cv::Mat &attribute_map)
 {
-    cv::Mat gt_depth_image, image_r, image_g, image_b,image_s;
-
+    // attribute_map is 4-channel: 0/1/2 = B/G/R, 3 = semantics. Split it into an
+    // rgb (BGR) mat + a semantics mat and delegate to the standalone dataset lib,
+    // which owns the on-disk format.
     cv::Mat channels[4];
-    cv::split(attribute_map,channels);
-    image_r = channels[0];
-    image_g = channels[1];
-    image_b = channels[2];
-    image_s = channels[3];
+    cv::split(attribute_map, channels);
 
+    cv::Mat rgb;
+    std::vector<cv::Mat> bgr = {channels[0], channels[1], channels[2]};
+    cv::merge(bgr, rgb);
 
     std::string output_file =
-        (boost::filesystem::path(FLAGS_output_folder_path) / (id + ".h5"))
-            .c_str();
-    HighFive::File file(
-        output_file, HighFive::File::ReadWrite | HighFive::File::Create |
-                         HighFive::File::Truncate);
+        (std::filesystem::path(FLAGS_output_folder_path) / (id + ".h5")).string();
 
-    // Use chunking
-    HighFive::DataSetCreateProps props;
-    props.add(HighFive::Chunking(std::vector<hsize_t>{1, 16, 16}));
-
-    // Enable deflate
-    props.add(HighFive::Deflate(6));
-
-    MArray3u rgb_data;
-    rgb_data.resize(
-        boost::extents[4][static_cast<int>(
-            std::floor(h_))]
-                      [static_cast<int>(
-                          std::floor(w_))]);
-
-    MArray3f depth_data;
-    depth_data.resize(
-        boost::extents[1][static_cast<int>(
-            std::floor(h_))]
-                      [static_cast<int>(
-                          std::floor(w_))]);
-
-    MArray3u_view2 r_view =
-        rgb_data[boost::indices[0][MArray3u::index_range()]
-                               [MArray3u::index_range()]];
-
-
-    Hdf5Utils::cv_mat_transposed_to_h5(image_r, r_view);
-
-    //cv::imshow("red", image_r);
-    //cv::waitKey(1);
-
-    MArray3u_view2 g_view =
-        rgb_data[boost::indices[1][MArray3u::index_range()]
-                               [MArray3u::index_range()]];
-    Hdf5Utils::cv_mat_transposed_to_h5(image_g, g_view);
-
-    MArray3u_view2 b_view =
-        rgb_data[boost::indices[2][MArray3u::index_range()]
-                               [MArray3u::index_range()]];
-    Hdf5Utils::cv_mat_transposed_to_h5(image_b, b_view);
-
-    MArray3u_view2 s_view =
-        rgb_data[boost::indices[3][MArray3u::index_range()]
-                               [MArray3u::index_range()]];
-    Hdf5Utils::cv_mat_transposed_to_h5(image_s, s_view);
-
-    HighFive::DataSet rgb_image_ds = file.createDataSet<uchar>(
-        "rgbs_data", HighFive::DataSpace::From(rgb_data), props);
-    rgb_image_ds.write(rgb_data);
-
-    // dense_image_data
-    MArray3f_view2 gt_depth_view =
-        depth_data[boost::indices[0][MArray3f::index_range()]
-                                  [MArray3f::index_range()]];
-    Hdf5Utils::cv_mat_float_image_to_h5(depth_map, gt_depth_view);
-
-    HighFive::DataSet dense_image_ds = file.createDataSet<float>(
-        "depth_data", HighFive::DataSpace::From(depth_data),
-        props);
-    dense_image_ds.write(depth_data);
-
-
-    file.flush();
+    if (!h5_dataset::write(output_file, rgb, depth_map, channels[3])) {
+        LOG(ERROR) << "failed to save " << output_file;
+    }
 }
 

@@ -14,7 +14,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 
-#include <h5_reader.h>
+#include <h5_dataset.h>
 
 DEFINE_string(folder, "", "folder containing the .h5 files to browse (required)");
 DEFINE_string(pose_file, "",
@@ -253,7 +253,7 @@ int main(int argc, char** argv) {
       const std::string& fname = files[index];
       const std::string full = (fs::path(FLAGS_folder) / fname).string();
       cv::Mat rgb, depth, semantics;
-      if (!readH5(full, rgb, depth, semantics)) {
+      if (!h5_dataset::read(full, rgb, depth, semantics)) {
         LOG(ERROR) << "skipping unreadable file: " << fname;
       } else {
         double dmin = 0, dmax = 0;
