@@ -7,24 +7,17 @@
 // that are trimmed of surrounding whitespace. Lines with a different field
 // count are skipped by the renderer.
 
-#include <boost/algorithm/string.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/tokenizer.hpp>
-
 #include <string>
 #include <vector>
+
+#include <string_utils.h>
 
 #include "test_common.h"
 
 // Mirror of CSVProcessor::parseLine().
 static void parseLine(const std::string& line, std::vector<std::string>& vec) {
-    boost::tokenizer<boost::escaped_list_separator<char> > tk(
-        line, boost::escaped_list_separator<char>('\\', ',', '\"'));
-    for (auto i = tk.begin(); i != tk.end(); ++i) {
-        std::string curr = *i;
-        boost::trim(curr);
-        vec.push_back(curr);
-    }
+    for (const std::string& field : vg_str::split(line, ','))
+        vec.push_back(vg_str::trim(field));
 }
 
 int main() {
@@ -37,10 +30,10 @@ int main() {
             vec);
         CHECK(vec.size() == 8);
         CHECK(vec[0] == "DJI_0001.JPG");
-        CHECK_APPROX(boost::lexical_cast<double>(vec[1]), 19.256670);
-        CHECK_APPROX(boost::lexical_cast<double>(vec[2]), -11.677642);
-        CHECK_APPROX(boost::lexical_cast<double>(vec[3]), 6.314486);
-        CHECK_APPROX(boost::lexical_cast<double>(vec[7]), 0.383373);
+        CHECK_APPROX(std::stod(vec[1]), 19.256670);
+        CHECK_APPROX(std::stod(vec[2]), -11.677642);
+        CHECK_APPROX(std::stod(vec[3]), 6.314486);
+        CHECK_APPROX(std::stod(vec[7]), 0.383373);
     }
 
     // Surrounding whitespace must be trimmed (renderer relies on trimming).
@@ -49,8 +42,8 @@ int main() {
         parseLine(" a , 1.5 ,\t-2.0 ", vec);
         CHECK(vec.size() == 3);
         CHECK(vec[0] == "a");
-        CHECK_APPROX(boost::lexical_cast<double>(vec[1]), 1.5);
-        CHECK_APPROX(boost::lexical_cast<double>(vec[2]), -2.0);
+        CHECK_APPROX(std::stod(vec[1]), 1.5);
+        CHECK_APPROX(std::stod(vec[2]), -2.0);
     }
 
     // The header line does not have 8 numeric columns and is skipped in

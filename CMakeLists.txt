@@ -1,10 +1,6 @@
 cmake_minimum_required(VERSION 3.14) 
 project(vulkan_glasses)
 
-if(POLICY CMP0167)
-  cmake_policy(SET CMP0167 NEW) # Use the new behavior for Boost::headers alias
-endif()
-
 # Set the C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -79,7 +75,13 @@ if(BUILD_WITH_CSV_PROCESSOR OR BUILD_WITH_H5_VIEWER)
     set (HIGHFIVE_EXAMPLES OFF)
     set (HIGHFIVE_UNIT_TESTS OFF)
     set (HIGHFIVE_BUILD_DOCS OFF)
+    # Disable HighFive's Boost support so it neither requires Boost at configure
+    # time nor defines H5_USE_BOOST on targets that link it. We read/write HDF5
+    # with plain std::vector, so Boost is not needed anywhere in the project.
+    set (USE_BOOST OFF CACHE BOOL "Disable HighFive Boost support" FORCE)
     add_subdirectory("third_party/HighFive")
+    # Standalone .h5 dataset I/O library shared by the renderer and the viewer.
+    add_subdirectory(h5_dataset)
 endif()
 
 if(BUILD_WITH_CSV_PROCESSOR)

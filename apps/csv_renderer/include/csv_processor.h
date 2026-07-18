@@ -4,10 +4,11 @@
 
 #include <glog/logging.h>
 
+#include <filesystem>
+#include <fstream>
 #include <set>
 #include <string>
 
-#include <boost/filesystem.hpp>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_ENABLE_EXPERIMENTAL
@@ -30,7 +31,7 @@ private:
 
     std::ifstream pose_file_;
     std::ofstream pose_out_file_;
-    boost::filesystem::path output_folder_;
+    std::filesystem::path output_folder_;
 
     // ids already present in the output image_poses.csv (used to resume a
     // preempted render when --render_missing_images is set).

@@ -1,16 +1,13 @@
 # Unit tests. Enabled from the top-level build with -DBUILD_TESTS=ON.
 # The unit tests below are GPU-independent (no Vulkan device required) and only
-# depend on glm and Boost, which the library already requires.
-
-find_package(Boost COMPONENTS filesystem REQUIRED)
+# depend on glm, which the library already requires.
 
 add_executable(test_pose_math test_pose_math.cc)
 target_include_directories(test_pose_math PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME pose_math COMMAND test_pose_math)
 
 add_executable(test_csv_parse test_csv_parse.cc)
-target_include_directories(test_csv_parse PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(test_csv_parse Boost::filesystem)
+target_include_directories(test_csv_parse PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/lib/include)
 add_test(NAME csv_parse COMMAND test_csv_parse)
 
 # Integration smoke test: if the CSV renderer app was built
