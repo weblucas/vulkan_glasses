@@ -21,5 +21,13 @@ if(COMPILE_SHADERS)
     add_dependencies(${PROJECT_NAME}_lib shaders)
 endif(COMPILE_SHADERS)
 
+install(TARGETS ${PROJECT_NAME}_lib
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin)
+
+install(DIRECTORY include/
+    DESTINATION include/${PROJECT_NAME})
+
 
 
