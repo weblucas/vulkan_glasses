@@ -4,6 +4,9 @@
 
 #include <glog/logging.h>
 
+#include <set>
+#include <string>
+
 #include <boost/filesystem.hpp>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -26,12 +29,18 @@ private:
     glm::mat4 projection_matrix_;
 
     std::ifstream pose_file_;
+    std::ofstream pose_out_file_;
     boost::filesystem::path output_folder_;
+
+    // ids already present in the output image_poses.csv (used to resume a
+    // preempted render when --render_missing_images is set).
+    std::set<std::string> recorded_ids_;
 
     double fx_,fy_,cx_,cy_;
     int h_,w_;
 
     void parseLine(std::string line, std::vector<std::string> &vec);
+    void loadRecordedIds(const std::string& csv_path);
 
     //renderer
 

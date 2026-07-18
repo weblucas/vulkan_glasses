@@ -26,6 +26,11 @@ DEFINE_string(output_folder_path, "", "result path");
 DEFINE_bool(display,false,"show result images, one by one");
 DEFINE_bool(display_wait,false,"wait for a key press after every render");
 DEFINE_bool(dry_run,false,"disable saving the result.");
+//Resume is always active: frames already recorded in the output image_poses.csv
+//whose .h5 is present are never re-rendered, and frames not yet recorded are
+//always rendered and appended. This flag additionally re-renders recorded frames
+//whose .h5 file has gone missing (off by default).
+DEFINE_bool(render_missing_images,false,"also re-render frames that are recorded in the output image_poses.csv but whose .h5 file is missing (off: such frames are left as-is)");
 //folder with the compiled shaders.
 DEFINE_string(shader_folder, "../shaders", "compiled shader folders");
 
@@ -89,6 +94,43 @@ bool CSVProcessor::initialization(
 
     output_folder_ = FLAGS_output_folder_path;
 
+    if(!FLAGS_dry_run)
+    {
+        // Record the pose of every rendered frame next to the .h5 files so the
+        // h5_viewer can display it. Format mirrors the input pose file. The line
+        // is written only after the frame is successfully saved (see runHeadless),
+        // so this file is an accurate record of completed renders and can be used
+        // to resume a preempted process.
+        boost::filesystem::path pose_out_path = output_folder_ / "image_poses.csv";
+
+        if (boost::filesystem::exists(pose_out_path))
+        {
+            // Continue an existing render: keep the prior records and append the
+            // frames that are not yet recorded (resume is always active; the
+            // --render_missing_images flag only controls re-rendering of recorded
+            // frames whose .h5 file has gone missing, see runHeadless).
+            loadRecordedIds(pose_out_path.string());
+            LOG(INFO) << "found existing pose file with " << recorded_ids_.size()
+                      << " recorded frames; continuing in " << pose_out_path.c_str();
+            pose_out_file_.open(pose_out_path.c_str(),
+                                std::ofstream::out | std::ofstream::app);
+            if (!pose_out_file_.is_open()) {
+                LOG(ERROR) << "could not open the pose output file:" << pose_out_path.c_str();
+                return false;
+            }
+        }
+        else
+        {
+            // No prior record: create the file and write the header.
+            pose_out_file_.open(pose_out_path.c_str(), std::ofstream::out);
+            if (!pose_out_file_.is_open()) {
+                LOG(ERROR) << "could not open the pose output file:" << pose_out_path.c_str();
+                return false;
+            }
+            pose_out_file_ << "id, p_x, p_y, p_z, q_x, q_y, q_z, q_w\n";
+        }
+    }
+
     if(FLAGS_step_skip < 1) // fix in case of user misuse
         FLAGS_step_skip = 1;
 
@@ -142,6 +184,22 @@ void CSVProcessor::initVulkan()
         render_app->buildPerpectiveProjection(projection_matrix_,w_,h_,fx_,fy_,0,cx_,cy_,FLAGS_near,FLAGS_far);
     }
 
+}
+
+void CSVProcessor::loadRecordedIds(const std::string& csv_path)
+{
+    std::ifstream in(csv_path);
+    if (!in.is_open())
+        return;
+    std::string line;
+    std::getline(in, line);  // header
+    while (std::getline(in, line))
+    {
+        std::vector<std::string> vec;
+        parseLine(line, vec);
+        if (vec.size() == 8 && !vec[0].empty())
+            recorded_ids_.insert(vec[0]);
+    }
 }
 
 void CSVProcessor::parseLine(std::string line,std::vector<std::string>& vec)
@@ -236,6 +294,22 @@ void CSVProcessor::runHeadless()
             glm::quat orientation;
 
             std::string id = vec[0] ;
+
+            // Resume logic:
+            //  - recorded & .h5 present  -> always skip (never re-render)
+            //  - recorded & .h5 missing  -> re-render only if --render_missing_images
+            //  - not recorded            -> always render + append the pose line
+            const bool recorded = recorded_ids_.count(id) > 0;
+            if (recorded)
+            {
+                boost::filesystem::path h5_path = output_folder_ / (id + ".h5");
+                if (boost::filesystem::exists(h5_path))
+                    continue;  // already rendered and present: never re-render
+                if (!FLAGS_render_missing_images)
+                    continue;  // recorded but missing, and re-render disabled
+                // recorded but missing, and re-render enabled: fall through.
+            }
+
             position.x = protected_double_cast(vec[1]);
             position.y = protected_double_cast(vec[2]);
             position.z = protected_double_cast(vec[3]);
@@ -251,7 +325,18 @@ void CSVProcessor::runHeadless()
             if(!FLAGS_dry_run)
             {
                 saveHdf5(id,result_depth_map, result_attribute_map);
-            }            
+                // Write the pose line only after the frame is saved, and flush so
+                // the record survives a preemption. Skip if already recorded (a
+                // re-rendered missing frame) to avoid duplicate csv lines.
+                if (!recorded)
+                {
+                    pose_out_file_ << id << ',' << position.x << ',' << position.y
+                                   << ',' << position.z << ',' << orientation.x << ','
+                                   << orientation.y << ',' << orientation.z << ','
+                                   << orientation.w << '\n';
+                    pose_out_file_.flush();
+                }
+            }
         }
         catch(std::runtime_error& e)
         {
@@ -268,6 +353,11 @@ void CSVProcessor::runHeadless()
 
 void CSVProcessor::stopVulkan()
 {
+    if (pose_out_file_.is_open())
+    {
+        pose_out_file_.flush();
+        pose_out_file_.close();
+    }
     delete render_app;
     render_app = nullptr;
 }
