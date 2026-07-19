@@ -53,7 +53,9 @@ private:
     void stopVulkan();
     void renderPose(glm::vec3 position, glm::quat orientation, cv::Mat & depth_map, cv::Mat & attribute_map);
     void saveEXR(std::string id,cv::Mat & depth_map, cv::Mat & attribute_map);
-    void saveHdf5(std::string id, cv::Mat & depth_map, cv::Mat & attribute_map);
+    // Writes the frame's .h5 to the output folder. Returns false (and logs) on
+    // failure so the caller can avoid recording the frame as completed.
+    bool saveHdf5(std::string id, cv::Mat & depth_map, cv::Mat & attribute_map);
 
     void glm2mvp(glm::vec3 position, glm::quat orientation, glm::mat4 &mvp);
 };
