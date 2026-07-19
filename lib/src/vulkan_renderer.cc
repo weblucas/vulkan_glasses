@@ -26,7 +26,9 @@ uint32_t vrglasses_for_robots::VulkanRenderer::getMemoryTypeIndex(
     }
     typeBits >>= 1;
   }
-  return 0;
+  // No compatible memory type: returning 0 would silently bind memory to an
+  // unsuitable heap, so fail loudly instead (matches findMemoryType()).
+  throw std::runtime_error("could not find a suitable Vulkan memory type");
 }
 
 VkResult vrglasses_for_robots::VulkanRenderer::createBuffer(
@@ -1153,28 +1155,28 @@ vrglasses_for_robots::VulkanRenderer::beginSingleTimeCommands() {
   allocInfo.commandBufferCount = 1;
 
   VkCommandBuffer commandBuffer;
-  vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+  VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer));
 
   VkCommandBufferBeginInfo beginInfo = {};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-  vkBeginCommandBuffer(commandBuffer, &beginInfo);
+  VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &beginInfo));
 
   return commandBuffer;
 }
 
 void vrglasses_for_robots::VulkanRenderer::endSingleTimeCommands(
     VkCommandBuffer commandBuffer) {
-  vkEndCommandBuffer(commandBuffer);
+  VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
 
   VkSubmitInfo submitInfo = {};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &commandBuffer;
 
-  vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-  vkQueueWaitIdle(queue);
+  VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
+  VK_CHECK_RESULT(vkQueueWaitIdle(queue));
 
   vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
