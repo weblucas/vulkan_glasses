@@ -112,7 +112,7 @@ install/run_h5_viewer.sh --folder example/output_temp
 
 The install tree is self-contained in project artifacts (binaries, shaders,
 launchers). It still relies on the system-provided runtime libraries (OpenCV, HDF5,
-glog, gflags, Boost) and a working Vulkan driver being installed on the machine.
+glog, gflags) and a working Vulkan driver being installed on the machine.
 
 ## Testing
 
