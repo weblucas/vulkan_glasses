@@ -820,17 +820,25 @@ void vrglasses_for_robots::VulkanRenderer::saveImageDepthmap(uint32_t width, uin
       vkUnmapMemory(device, image_buffer_memory);
 
       // Recover metric depth from the Vulkan depth buffer d in [0,1] (near -> 0,
-      // far -> 1, as set up in buildPerpectiveProjection). Undoing the [0,1]->
-      // [-1,1] remap (z = 2d-1) inside the standard perspective inverse
-      //   depth = 2*n*f / ((f+n) - z*(f-n))
-      // gives, in terms of d directly:
-      //   depth = 2*n*f / (2f - 2d*(f-n))
-      // Build the denominator as an affine map of d (scale, offset) then divide.
-      result_depth_map.getMat().convertTo(result_depth_map, CV_32F,
-                                 -2.0 * static_cast<double>(far_ - near_),
-                                 2.0 * static_cast<double>(far_));
+      // far -> 1). The mapping is linear for an orthographic projection and the
+      // perspective inverse otherwise; both projections are set up to put d in
+      // [0,1] (see build*Projection).
+      if (orthographic_) {
+        // Orthographic depth is linear: depth = near + d*(far-near).
+        result_depth_map.getMat().convertTo(result_depth_map, CV_32F,
+                                   static_cast<double>(far_ - near_),
+                                   static_cast<double>(near_));
+      } else {
+        // Perspective: undoing the [0,1]->[-1,1] remap (z = 2d-1) inside
+        //   depth = 2*n*f / ((f+n) - z*(f-n))
+        // gives, in terms of d directly, depth = 2*n*f / (2f - 2d*(f-n)).
+        // Build the denominator as an affine map of d (scale, offset) then divide.
+        result_depth_map.getMat().convertTo(result_depth_map, CV_32F,
+                                   -2.0 * static_cast<double>(far_ - near_),
+                                   2.0 * static_cast<double>(far_));
 
-      result_depth_map.getMat() = (2.0f * far_ * near_) / result_depth_map.getMat();
+        result_depth_map.getMat() = (2.0f * far_ * near_) / result_depth_map.getMat();
+      }
 
       // cv::flip(result_depth_map, result_depth_map, 0);
       cv::threshold(result_depth_map, result_depth_map, far_ - 0.0001, far_,
@@ -1361,10 +1369,14 @@ void vrglasses_for_robots::VulkanRenderer::buildOrthographicProjection(
     glm::mat4 ortho;
     ortho = glm::ortho(left, right, bottom, top, near, far);
 
+    // glm::ortho already emits Vulkan-style z in [0,1] (near -> 0, far -> 1)
+    // because GLM_FORCE_DEPTH_ZERO_TO_ONE is set. So clip only flips Y for
+    // Vulkan; it must NOT remap z again (the old 0.5*z+0.5 row compressed the
+    // range into [0.5,1], wasting half the depth buffer and breaking read-back).
     const glm::mat4 clip(1.0f,  0.0f, 0.0f, 0.0f,
                          0.0f, -1.0f, 0.0f, 0.0f,
-                         0.0f,  0.0f, 0.5f, 0.0f,
-                         0.0f,  0.0f, 0.5f, 1.0f);
+                         0.0f,  0.0f, 1.0f, 0.0f,
+                         0.0f,  0.0f, 0.0f, 1.0f);
 
     orthographic_projection_matrix = clip * ortho;
 }
