@@ -321,11 +321,13 @@ void CSVProcessor::runHeadless()
 
             if(!FLAGS_dry_run)
             {
-                saveHdf5(id,result_depth_map, result_attribute_map);
-                // Write the pose line only after the frame is saved, and flush so
-                // the record survives a preemption. Skip if already recorded (a
-                // re-rendered missing frame) to avoid duplicate csv lines.
-                if (!recorded)
+                // Append the pose line only if the .h5 was actually written and
+                // the frame was not already recorded, so image_poses.csv stays an
+                // accurate record of completed frames (used to resume) and never
+                // lists a frame whose save failed. Flush so the record survives a
+                // preemption.
+                const bool saved = saveHdf5(id,result_depth_map, result_attribute_map);
+                if (saved && !recorded)
                 {
                     pose_out_file_ << id << ',' << position.x << ',' << position.y
                                    << ',' << position.z << ',' << orientation.x << ','
@@ -437,7 +439,7 @@ void CSVProcessor::renderPose(glm::vec3 position, glm::quat orientation, cv::Mat
 
 }
 
-void CSVProcessor::saveHdf5(std::string id, cv::Mat &depth_map, cv::Mat &attribute_map)
+bool CSVProcessor::saveHdf5(std::string id, cv::Mat &depth_map, cv::Mat &attribute_map)
 {
     // attribute_map is 4-channel: 0/1/2 = B/G/R, 3 = semantics. Split it into an
     // rgb (BGR) mat + a semantics mat and delegate to the standalone dataset lib,
@@ -454,6 +456,8 @@ void CSVProcessor::saveHdf5(std::string id, cv::Mat &depth_map, cv::Mat &attribu
 
     if (!h5_dataset::write(output_file, rgb, depth_map, channels[3])) {
         LOG(ERROR) << "failed to save " << output_file;
+        return false;
     }
+    return true;
 }
 

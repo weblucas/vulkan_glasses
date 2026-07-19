@@ -628,6 +628,11 @@ void vrglasses_for_robots::VulkanRenderer::drawTriangles(uint32_t width,
     submitWork(commandBuffer, queue);
 
     vkDeviceWaitIdle(device);
+
+    // submitWork waits on a fence (and we wait idle above), so the GPU is done
+    // with this buffer. Free it here: drawTriangles runs once per rendered pose,
+    // so without this the command pool leaks one primary buffer per frame.
+    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
   }
 }
 
@@ -728,6 +733,11 @@ void vrglasses_for_robots::VulkanRenderer::saveImageDepthmap(uint32_t width, uin
 
     submitWork(copyCmd, queue);
 
+    // The copy is finished (submitWork waited on its fence). Free the command
+    // buffer now: saveImageDepthmap runs once per rendered pose, so otherwise the
+    // command pool leaks one primary buffer per frame.
+    vkFreeCommandBuffers(device, commandPool, 1, &copyCmd);
+
     // Get layout of the image (including row pitch)
     VkImageSubresource subResource{};
     subResource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -742,8 +752,17 @@ void vrglasses_for_robots::VulkanRenderer::saveImageDepthmap(uint32_t width, uin
     imagedata += subResourceLayout.offset;
 
     {
-      VkDeviceSize mem_size = height * width * 4; // assuming 8UC4
-      memcpy(result_attribute_map.getMat().data, imagedata, mem_size);
+      // dstImage is LINEAR-tiled, so consecutive rows are separated by
+      // subResourceLayout.rowPitch, which the driver may pad beyond width*4.
+      // Copy row-by-row into the tightly packed CV_8UC4 result rather than
+      // assuming a contiguous width*4 stride (a single memcpy shears the image
+      // on any driver/width where rowPitch != width*4).
+      cv::Mat attr = result_attribute_map.getMat();
+      const size_t row_bytes = static_cast<size_t>(width) * 4;
+      for (uint32_t y = 0; y < height; ++y) {
+        memcpy(attr.ptr(y), imagedata + y * subResourceLayout.rowPitch,
+               row_bytes);
+      }
     }
 
     /*
