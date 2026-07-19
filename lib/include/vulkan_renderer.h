@@ -154,6 +154,10 @@ class VulkanRenderer {
   std::string shader_vert_spv_;
   std::string shader_frag_spv_;
   float far_, near_;
+  // Selects how saveImageDepthmap() converts the depth buffer to metric depth:
+  // perspective (nonlinear inverse) vs orthographic (linear). Set via
+  // setOrthographic() to match the projection built by the caller.
+  bool orthographic_ = false;
   /*
      Create framebuffer attachments
   */
@@ -260,6 +264,10 @@ class VulkanRenderer {
 
 
   void setCamera(glm::mat4 mvp);
+
+  // Tell the renderer whether the active projection is orthographic, so depth
+  // read-back uses the matching (linear vs perspective) reconstruction.
+  void setOrthographic(bool orthographic) { orthographic_ = orthographic; }
 
   //
   bool loadMeshs(const std::string &model_folder, const std::string &model_list);

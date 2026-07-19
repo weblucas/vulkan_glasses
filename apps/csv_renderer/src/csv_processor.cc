@@ -176,15 +176,17 @@ void CSVProcessor::initVulkan()
 #endif
     if(FLAGS_ortho)
     {
-        if(FLAGS_ortho_width != 0)
-        {
-            render_app->buildOrthographicProjection(projection_matrix_,FLAGS_ortho_width,FLAGS_ortho_width*(h_/(float)w_),FLAGS_near,FLAGS_far);
-        }
+        if(FLAGS_ortho_width == 0)
+            throw std::runtime_error(
+                "--ortho requires --ortho_width > 0 (world-units width of the view)");
+        render_app->buildOrthographicProjection(projection_matrix_,FLAGS_ortho_width,FLAGS_ortho_width*(h_/(float)w_),FLAGS_near,FLAGS_far);
     }
     else
     {
         render_app->buildPerpectiveProjection(projection_matrix_,w_,h_,fx_,fy_,0,cx_,cy_,FLAGS_near,FLAGS_far);
     }
+    // Depth read-back must match the projection (linear for ortho).
+    render_app->setOrthographic(FLAGS_ortho);
 
 }
 
