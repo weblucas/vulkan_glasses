@@ -1,5 +1,6 @@
 build
 bin
+install
 example/output_temp
 .idea
 

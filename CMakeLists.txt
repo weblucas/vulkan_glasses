@@ -1,10 +1,6 @@
 cmake_minimum_required(VERSION 3.14) 
 project(vulkan_glasses)
 
-if(POLICY CMP0167)
-  cmake_policy(SET CMP0167 NEW) # Use the new behavior for Boost::headers alias
-endif()
-
 # Set the C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,12 +14,17 @@ endif()
 # Set install prefix to project_folder/bin
 set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/bin" CACHE PATH "Install path prefix" FORCE)
 
+# Keep library search paths on the installed binaries so runtime libraries in
+# non-standard locations (e.g. the HDF5 serial dir) still resolve after install.
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+
 
 
 # Options for ROS versions
 option(BUILD_WITH_ROS1 "Build with ROS 1 (catkin) extensions" OFF)
 option(BUILD_WITH_ROS2 "Build with ROS 2 (ament) extensions" OFF)
 option(BUILD_WITH_CSV_PROCESSOR "Build with CSV Processor application" OFF)
+option(BUILD_WITH_H5_VIEWER "Build the .h5 image viewer" OFF)
 option(COMPILE_SHADERS "Build with CSV Processor application" ON)
 
 if(COMPILE_SHADERS)
@@ -69,11 +70,35 @@ endif(COMPILE_SHADERS)
 add_subdirectory(lib)
 
 
-if(BUILD_WITH_CSV_PROCESSOR)
+# HighFive (HDF5 wrapper) is shared by both HDF5-based apps; add it once.
+if(BUILD_WITH_CSV_PROCESSOR OR BUILD_WITH_H5_VIEWER)
     set (HIGHFIVE_EXAMPLES OFF)
     set (HIGHFIVE_UNIT_TESTS OFF)
     set (HIGHFIVE_BUILD_DOCS OFF)
+    # Disable HighFive's Boost support so it neither requires Boost at configure
+    # time nor defines H5_USE_BOOST on targets that link it. We read/write HDF5
+    # with plain std::vector, so Boost is not needed anywhere in the project.
+    set (USE_BOOST OFF CACHE BOOL "Disable HighFive Boost support" FORCE)
     add_subdirectory("third_party/HighFive")
+    # Standalone .h5 dataset I/O library shared by the renderer and the viewer.
+    add_subdirectory(h5_dataset)
+endif()
+
+if(BUILD_WITH_CSV_PROCESSOR)
     add_subdirectory(apps/csv_renderer)
+    # Launcher that runs the renderer with the shader folder resolved relative to
+    # the install location, so the install tree is self-contained.
+    install(PROGRAMS scripts/run_csv_renderer.sh DESTINATION .)
+endif()
+
+if(BUILD_WITH_H5_VIEWER)
+    add_subdirectory(apps/h5_viewer)
+    install(PROGRAMS scripts/run_h5_viewer.sh DESTINATION .)
+endif()
+
+option(BUILD_TESTS "Build unit tests" OFF)
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(test)
 endif()
 
