@@ -2,6 +2,9 @@
 #include <iostream>
 
 #include <opencv2/highgui.hpp>
+#include <chrono>
+#include <cstdio>
+#include <deque>
 #include <stdexcept>
 #include <vector>
 #include <gflags/gflags.h>
@@ -263,86 +266,160 @@ double protected_double_cast(std::string str)
 }
 
 
+namespace {
+// One validated camera pose loaded from the input pose file.
+struct PoseEntry {
+    std::string id;
+    glm::vec3 position;
+    glm::quat orientation;
+};
+}  // namespace
+
 void CSVProcessor::runHeadless()
 {
-    std::string line;
-    std::vector<std::string> vec;
-    std::getline(pose_file_,line);
+    // Preload and validate the whole pose file in a single pass: parse each data
+    // line, drop the header and any malformed/uncastable line, and keep the valid
+    // poses. The render loop then just iterates this vector, so the file is read
+    // exactly once and the total is known up front for the progress display.
+    std::vector<PoseEntry> entries;
+    {
+        std::string line;
+        std::getline(pose_file_, line);  // header
+        while (std::getline(pose_file_, line))
+        {
+            std::vector<std::string> vec;
+            parseLine(line, vec);
+            if (vec.size() != 8 || vec[0].empty())
+                continue;  // header repeat, blank, or malformed line
+
+            PoseEntry entry;
+            entry.id = vec[0];
+            try
+            {
+                entry.position = glm::vec3(protected_double_cast(vec[1]),
+                                           protected_double_cast(vec[2]),
+                                           protected_double_cast(vec[3]));
+                entry.orientation.x = protected_double_cast(vec[4]);
+                entry.orientation.y = protected_double_cast(vec[5]);
+                entry.orientation.z = protected_double_cast(vec[6]);
+                entry.orientation.w = protected_double_cast(vec[7]);
+            }
+            catch (const std::runtime_error& e)
+            {
+                LOG(INFO) << "skipping pose line (" << e.what() << "): " << line;
+                continue;
+            }
+            entry.orientation = glm::normalize(entry.orientation);
+            entries.push_back(std::move(entry));
+        }
+    }
+
+    const int total = static_cast<int>(entries.size());
+    LOG(INFO) << "loaded " << total << " valid pose entries";
+
+    // Number of entries that pass the step_skip filter, i.e. the frames that will
+    // actually be rendered (FLAGS_step_skip is >= 1, clamped in initialization).
+    // Used for the ETA; on a resume, frames whose .h5 already exists are skipped
+    // instantly, so the ETA is a (conservative) upper bound in that case.
+    const int total_to_render = total > 0 ? (total - 1) / FLAGS_step_skip + 1 : 0;
+
+    // Rolling window of the last 10 render+save durations (seconds) for a moving
+    // average and ETA.
+    std::deque<double> recent_times;
+    int rendered_count = 0;
+
     cv::Mat result_depth_map, result_attribute_map;
 
-    int line_counter = -1;
-
-    while (!pose_file_.eof())
+    for (int i = 0; i < total; ++i)
     {
-        vec.clear();
-        std::getline(pose_file_,line);
-        line_counter++;
-        parseLine(line,vec);
-        if(vec.size() != 8)
-            continue;
-        if(line_counter % FLAGS_step_skip)
+        // step_skip subsamples the loaded frames (e.g. a 200 Hz pose log with
+        // step_skip=10 renders at 20 Hz).
+        if (i % FLAGS_step_skip)
             continue;
 
-        std::cout << '\r' << "rendering line: " << line_counter+1 << std::flush;
+        const PoseEntry& entry = entries[i];
+
+        // Progress line: current/total plus a moving average and ETA from the
+        // last <=10 rendered frames (shown as "--" until the first one finishes).
+        // Trailing spaces pad over the previous, possibly longer, line.
+        char status[128];
+        if (!recent_times.empty())
+        {
+            double avg = 0.0;
+            for (double t : recent_times) avg += t;
+            avg /= recent_times.size();
+            const double eta = avg * (total_to_render - rendered_count);
+            std::snprintf(status, sizeof(status),
+                          "  |  avg %.3f s/frame (last %zu)  |  ETA %.0f s        ",
+                          avg, recent_times.size(), eta);
+        }
+        else
+        {
+            std::snprintf(status, sizeof(status), "  |  avg --  |  ETA --        ");
+        }
+        std::cout << '\r' << "rendering: " << (i + 1) << " / " << total << status
+                  << std::flush;
+
+        // Resume logic:
+        //  - recorded & .h5 present  -> always skip (never re-render)
+        //  - recorded & .h5 missing  -> re-render only if --render_missing_images
+        //  - not recorded            -> always render + append the pose line
+        const bool recorded = recorded_ids_.count(entry.id) > 0;
+        if (recorded)
+        {
+            std::filesystem::path h5_path = output_folder_ / (entry.id + ".h5");
+            if (std::filesystem::exists(h5_path))
+                continue;  // already rendered and present: never re-render
+            if (!FLAGS_render_missing_images)
+                continue;  // recorded but missing, and re-render disabled
+            // recorded but missing, and re-render enabled: fall through.
+        }
 
         try
         {
-            glm::vec3 position;
-            glm::quat orientation;
+            const auto t_start = std::chrono::steady_clock::now();
 
-            std::string id = vec[0] ;
+            renderPose(entry.position, entry.orientation, result_depth_map,
+                       result_attribute_map);
 
-            // Resume logic:
-            //  - recorded & .h5 present  -> always skip (never re-render)
-            //  - recorded & .h5 missing  -> re-render only if --render_missing_images
-            //  - not recorded            -> always render + append the pose line
-            const bool recorded = recorded_ids_.count(id) > 0;
-            if (recorded)
+            if (!FLAGS_dry_run)
             {
-                std::filesystem::path h5_path = output_folder_ / (id + ".h5");
-                if (std::filesystem::exists(h5_path))
-                    continue;  // already rendered and present: never re-render
-                if (!FLAGS_render_missing_images)
-                    continue;  // recorded but missing, and re-render disabled
-                // recorded but missing, and re-render enabled: fall through.
-            }
-
-            position.x = protected_double_cast(vec[1]);
-            position.y = protected_double_cast(vec[2]);
-            position.z = protected_double_cast(vec[3]);
-
-            orientation.x = protected_double_cast(vec[4]);
-            orientation.y = protected_double_cast(vec[5]);
-            orientation.z = protected_double_cast(vec[6]);
-            orientation.w = protected_double_cast(vec[7]);
-            orientation = glm::normalize(orientation);
-
-            renderPose(position,orientation,result_depth_map, result_attribute_map);
-
-            if(!FLAGS_dry_run)
-            {
-                // Append the pose line only if the .h5 was actually written and
-                // the frame was not already recorded, so image_poses.csv stays an
+                // Append the pose line only if the .h5 was actually written and the
+                // frame was not already recorded, so image_poses.csv stays an
                 // accurate record of completed frames (used to resume) and never
                 // lists a frame whose save failed. Flush so the record survives a
                 // preemption.
-                const bool saved = saveHdf5(id,result_depth_map, result_attribute_map);
+                const bool saved =
+                    saveHdf5(entry.id, result_depth_map, result_attribute_map);
                 if (saved && !recorded)
                 {
-                    pose_out_file_ << id << ',' << position.x << ',' << position.y
-                                   << ',' << position.z << ',' << orientation.x << ','
-                                   << orientation.y << ',' << orientation.z << ','
-                                   << orientation.w << '\n';
+                    pose_out_file_ << entry.id << ',' << entry.position.x << ','
+                                   << entry.position.y << ',' << entry.position.z
+                                   << ',' << entry.orientation.x << ','
+                                   << entry.orientation.y << ','
+                                   << entry.orientation.z << ','
+                                   << entry.orientation.w << '\n';
                     pose_out_file_.flush();
                 }
             }
+
+            const auto t_end = std::chrono::steady_clock::now();
+            recent_times.push_back(
+                std::chrono::duration<double>(t_end - t_start).count());
+            if (recent_times.size() > 10)
+                recent_times.pop_front();
+            ++rendered_count;
         }
-        catch(std::runtime_error& e)
+        catch (const std::exception& e)
         {
-            LOG(INFO) << "#"<<  "cast issue: " << e.what()  <<"#";
+            LOG(WARNING) << "skipping frame " << entry.id << ": " << e.what();
             continue;
         }
     }
+
+    // Terminate the in-place ('\r') progress line with a newline so the next log
+    // message starts on its own line instead of being appended to it.
+    std::cout << std::endl;
 
     LOG(INFO) << "#"<<  "stopVulkan" << "#";
     stopVulkan();

@@ -942,7 +942,11 @@ void vrglasses_for_robots::VulkanRenderer::createTextureImage(Texture2D &tex,std
   stbi_info(filename_texture.c_str(),&texWidth, &texHeight,
             &texChannels);
   if (texChannels < 4) {
-      std::cout << "Texture with only " << texChannels << "channels - " << filename_texture <<"!" << std::endl;
+    // Not an error: stbi_load(..., STBI_rgb_alpha) below always upconverts the
+    // texture to 4-channel RGBA. Logged via glog (not stdout) so it doesn't
+    // interleave with the renderer's progress output.
+    LOG(INFO) << "texture " << filename_texture << " has " << texChannels
+              << " channels; loaded as RGBA";
   }
 
   stbi_uc *pixels = stbi_load(filename_texture.c_str(), &texWidth, &texHeight,
