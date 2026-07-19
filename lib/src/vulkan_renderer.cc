@@ -651,9 +651,11 @@ void vrglasses_for_robots::VulkanRenderer::drawTriangles(uint32_t width,
 
 float vrglasses_for_robots::VulkanRenderer::convertZbufferToDepth(
     float near, float far, float zValue) {
-  // float wz = 2.0 * zValue - 1.0;  // Convert Z from [0, 1] to [-1, 1] This
-  // step should not be used in vulkan
-  return 2.0 * near * far / (far + near - zValue * (far - near));
+  // zValue is the Vulkan depth-buffer value in [0,1] (near -> 0, far -> 1, see
+  // buildPerpectiveProjection). Convert it to the [-1,1] range the perspective
+  // inverse expects, then invert to metric depth.
+  const float z = 2.0f * zValue - 1.0f;
+  return 2.0 * near * far / (far + near - z * (far - near));
 }
 
 void vrglasses_for_robots::VulkanRenderer::saveImageDepthmap(uint32_t width, uint32_t height, cv::OutputArray result_depth_map,
@@ -817,12 +819,16 @@ void vrglasses_for_robots::VulkanRenderer::saveImageDepthmap(uint32_t width, uin
       memcpy(result_depth_map.getMat().data, mapped, mem_size);
       vkUnmapMemory(device, image_buffer_memory);
 
-      // 2.0 * near* far / (far + near - zValue * (far - near));
-
-      //      result_depth_map.convertTo(result_depth_map, CV_32F, 2, -1);
+      // Recover metric depth from the Vulkan depth buffer d in [0,1] (near -> 0,
+      // far -> 1, as set up in buildPerpectiveProjection). Undoing the [0,1]->
+      // [-1,1] remap (z = 2d-1) inside the standard perspective inverse
+      //   depth = 2*n*f / ((f+n) - z*(f-n))
+      // gives, in terms of d directly:
+      //   depth = 2*n*f / (2f - 2d*(f-n))
+      // Build the denominator as an affine map of d (scale, offset) then divide.
       result_depth_map.getMat().convertTo(result_depth_map, CV_32F,
-                                 -1.0 * static_cast<double>(far_ - near_),
-                                 static_cast<double>(far_ + near_));
+                                 -2.0 * static_cast<double>(far_ - near_),
+                                 2.0 * static_cast<double>(far_));
 
       result_depth_map.getMat() = (2.0f * far_ * near_) / result_depth_map.getMat();
 
@@ -1325,6 +1331,15 @@ void vrglasses_for_robots::VulkanRenderer::buildPerpectiveProjection(
     // matrix
     matPerspective = ndc * matProjection;
     matPerspective[1][1] *= -1; //was originally designed for OpenGL, where the Y coordinate of the clip coordinates is inverted in relation Vulkan.
+
+    // The matrix above maps z into OpenGL's [-1,1] NDC (near -> -1). Vulkan's
+    // clip volume is z in [0,1] and clips z < 0, which would discard the near
+    // half of the range and waste half the depth buffer. Fold in the GL->Vulkan
+    // z remap z_clip' = 0.5*z_clip + 0.5*w_clip (i.e. near -> 0, far -> 1). The
+    // depth read-back in saveImageDepthmap inverts this exact convention, so the
+    // recovered metric depth (meters) is unchanged.
+    matPerspective[2][2] = 0.5f * matPerspective[2][2] + 0.5f * matPerspective[2][3];
+    matPerspective[3][2] = 0.5f * matPerspective[3][2] + 0.5f * matPerspective[3][3];
 }
 
 void vrglasses_for_robots::VulkanRenderer::buildOrthographicProjection(
