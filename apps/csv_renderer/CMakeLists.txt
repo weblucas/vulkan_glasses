@@ -7,7 +7,7 @@
 
 find_package( Eigen3 REQUIRED )
 find_package( OpenCV REQUIRED core highgui imgproc )
-find_package( Vulkan )
+find_package( Vulkan REQUIRED )
 
 
 include_directories( ${EIGEN3_INCLUDE_DIR} )
