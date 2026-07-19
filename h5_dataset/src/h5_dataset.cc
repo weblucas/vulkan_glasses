@@ -1,5 +1,6 @@
 #include <h5_dataset.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -149,8 +150,13 @@ bool write(const std::string& path, const cv::Mat& rgb, const cv::Mat& depth,
     HighFive::File file(path, HighFive::File::ReadWrite | HighFive::File::Create |
                                   HighFive::File::Truncate);
 
+    // Chunk dims must not exceed the dataset extent for fixed-size dimensions
+    // (HDF5 rejects a chunk larger than the dimension), so clamp the 16x16 tile
+    // to the image size — otherwise images smaller than 16px fail to write.
+    const hsize_t chunk_h = std::min<hsize_t>(16, h);
+    const hsize_t chunk_w = std::min<hsize_t>(16, w);
     HighFive::DataSetCreateProps props;
-    props.add(HighFive::Chunking(std::vector<hsize_t>{1, 16, 16}));
+    props.add(HighFive::Chunking(std::vector<hsize_t>{1, chunk_h, chunk_w}));
     props.add(HighFive::Deflate(6));
 
     HighFive::DataSet rgb_ds = file.createDataSet<unsigned char>(
