@@ -1462,6 +1462,11 @@ bool vrglasses_for_robots::VulkanRenderer::loadMeshs(
           continue;
 
         std::vector<std::string> strs = vg_str::split(line, ';');
+        if (strs.size() < 3) {
+          LOG(WARNING) << "skipping malformed model list line (expected "
+                          "name;obj;texture): " << line;
+          continue;
+        }
 
         models_.push_back(ThreeDModel());
         models_.back().name = vg_str::trim(strs[0]);
@@ -1534,8 +1539,15 @@ bool vrglasses_for_robots::VulkanRenderer::loadVertex(const size_t model_idx) {
                     attrib.vertices[3 * index.vertex_index + 1],
                     attrib.vertices[3 * index.vertex_index + 2]};
 
-      vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
-                         1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
+      // tinyobj sets texcoord_index == -1 for faces without texture coords;
+      // indexing attrib.texcoords with it would read out of bounds. Fall back to
+      // (0,0) for such vertices.
+      if (index.texcoord_index >= 0) {
+        vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
+                           1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
+      } else {
+        vertex.texCoord = {0.0f, 0.0f};
+      }
 
       // vertex.color = {1.0f, 1.0f, 1.0f};
 
@@ -1627,11 +1639,20 @@ void vrglasses_for_robots::VulkanRenderer::copyVertex() {
 }
 
 glm::mat4 parsePose(std::string pose_text) {
+  // Pose is "x y z [yaw_deg]": the yaw field is optional (the example's capsule
+  // rows give only x y z), so require at least 3 fields and default yaw to 0.
   std::vector<std::string> strs = vg_str::split(pose_text, ' ');
+  if (strs.size() < 3) {
+    throw std::invalid_argument(
+        "pose must have at least 3 space-separated fields (x y z [yaw_deg]): " +
+        pose_text);
+  }
   glm::mat4 result = glm::translate(
       glm::mat4(1.0),
       glm::vec3(std::stod(strs[0]), std::stod(strs[1]), std::stod(strs[2])));
-  result *= glm::eulerAngleZ((float)glm::radians(std::stod(strs[3])));
+  if (strs.size() >= 4) {
+    result *= glm::eulerAngleZ((float)glm::radians(std::stod(strs[3])));
+  }
   return result;
 }
 
@@ -1649,6 +1670,11 @@ bool vrglasses_for_robots::VulkanRenderer::loadScene(
           continue;
 
         std::vector<std::string> strs = vg_str::split(line, ';');
+        if (strs.size() < 3) {
+          LOG(WARNING) << "skipping malformed scene line (expected "
+                          "model;pose;id): " << line;
+          continue;
+        }
         scene_items_.push_back(SceneItem());
         scene_items_.back().model_name = strs[0];
         scene_items_.back().T_World2Model = parsePose(strs[1]);
