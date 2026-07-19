@@ -8,7 +8,8 @@ int main(int argc, char *argv[]) {
     google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, true);
     gflags::SetUsageMessage("some usage message");
-    google::SetLogDestination(google::INFO, "/media/secssd/tmp/foobar.log");
+    // Log to stderr (below) and, if --log_dir is set, to that directory. No
+    // hardcoded path so the app is portable across machines.
     google::InstallFailureSignalHandler();
     FLAGS_alsologtostderr = true;
     FLAGS_colorlogtostderr = true;
