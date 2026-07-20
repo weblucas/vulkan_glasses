@@ -27,7 +27,10 @@ option(BUILD_WITH_CSV_PROCESSOR "Build with CSV Processor application" OFF)
 option(BUILD_WITH_H5_VIEWER "Build the .h5 image viewer" OFF)
 option(COMPILE_SHADERS "Build with CSV Processor application" ON)
 
-if(COMPILE_SHADERS)
+# Shaders are only consumed by the Vulkan renderer, so compile them only when
+# that app is built. This keeps viewer-/h5_dataset-/tests-only builds free of the
+# glslangValidator (Vulkan SDK) requirement.
+if(COMPILE_SHADERS AND BUILD_WITH_CSV_PROCESSOR)
     # Find the glslangValidator executable
     find_program(GLSLANG_VALIDATOR glslangValidator)
     if(NOT GLSLANG_VALIDATOR)
@@ -64,10 +67,15 @@ add_custom_command(
 add_custom_target(shaders ALL DEPENDS ${SHADER_VERT_SPV} ${SHADER_FRAG_SPV})
 install(FILES ${SHADER_VERT_SPV} ${SHADER_FRAG_SPV} DESTINATION shaders)
 
-endif(COMPILE_SHADERS)
+endif()
 
 
-add_subdirectory(lib)
+# The Vulkan renderer library is only needed by the CSV renderer app. Gate it so
+# an h5_dataset-only or viewer-only build (and the GPU-independent tests) can
+# configure and compile without Vulkan installed.
+if(BUILD_WITH_CSV_PROCESSOR)
+    add_subdirectory(lib)
+endif()
 
 
 # HighFive (HDF5 wrapper) is shared by both HDF5-based apps; add it once.

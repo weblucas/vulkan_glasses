@@ -131,6 +131,12 @@ class VulkanRenderer {
   VkQueue queue;
   VkCommandPool commandPool;
   VkCommandBuffer commandBuffer;
+  // Transient per-frame resources allocated once in initVulkan and reused every
+  // pose (the pool is created with RESET_COMMAND_BUFFER_BIT): the draw and copy
+  // command buffers are reset+re-recorded, and one fence serializes each submit.
+  VkCommandBuffer draw_command_buffer_ = VK_NULL_HANDLE;
+  VkCommandBuffer copy_command_buffer_ = VK_NULL_HANDLE;
+  VkFence render_fence_ = VK_NULL_HANDLE;
   VkDescriptorSetLayout descriptorSetLayout;
   VkPipelineLayout pipelineLayout;
   VkPipeline pipeline;
