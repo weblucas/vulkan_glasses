@@ -66,12 +66,11 @@ void vrglasses_for_robots::VulkanRenderer::submitWork(VkCommandBuffer cmdBuffer,
   VkSubmitInfo submitInfo = vks::initializers::submitInfo();
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &cmdBuffer;
-  VkFenceCreateInfo fenceInfo = vks::initializers::fenceCreateInfo();
-  VkFence fence;
-  VK_CHECK_RESULT(vkCreateFence(device, &fenceInfo, nullptr, &fence));
-  VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, fence));
-  VK_CHECK_RESULT(vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX));
-  vkDestroyFence(device, fence, nullptr);
+  // Reuse the persistent fence: every submission here is fully serialized by the
+  // wait below, so one fence suffices. Reset it before it is signalled again.
+  VK_CHECK_RESULT(vkResetFences(device, 1, &render_fence_));
+  VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, render_fence_));
+  VK_CHECK_RESULT(vkWaitForFences(device, 1, &render_fence_, VK_TRUE, UINT64_MAX));
 }
 
 void vrglasses_for_robots::VulkanRenderer::initVulkan(bool enableValidation) {
@@ -209,6 +208,20 @@ void vrglasses_for_robots::VulkanRenderer::initVulkan(bool enableValidation) {
   cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
   VK_CHECK_RESULT(
       vkCreateCommandPool(device, &cmdPoolInfo, nullptr, &commandPool));
+
+  // Allocate the per-frame command buffers and the submit fence once, up front.
+  // drawTriangles/saveImageDepthmap reset and re-record these every pose instead
+  // of allocating+freeing fresh buffers each frame; submitWork reuses the fence.
+  VkCommandBufferAllocateInfo frameCmdAllocInfo =
+      vks::initializers::commandBufferAllocateInfo(
+          commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
+  VK_CHECK_RESULT(
+      vkAllocateCommandBuffers(device, &frameCmdAllocInfo, &draw_command_buffer_));
+  VK_CHECK_RESULT(
+      vkAllocateCommandBuffers(device, &frameCmdAllocInfo, &copy_command_buffer_));
+
+  VkFenceCreateInfo fenceInfo = vks::initializers::fenceCreateInfo();
+  VK_CHECK_RESULT(vkCreateFence(device, &fenceInfo, nullptr, &render_fence_));
 }
 
 void vrglasses_for_robots::VulkanRenderer::buildRenderPass(uint32_t width,
@@ -555,12 +568,9 @@ void vrglasses_for_robots::VulkanRenderer::drawTriangles(uint32_t width,
           Command buffer creation
   */
   {
-    VkCommandBuffer commandBuffer;
-    VkCommandBufferAllocateInfo cmdBufAllocateInfo =
-        vks::initializers::commandBufferAllocateInfo(
-            commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
-    VK_CHECK_RESULT(
-        vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, &commandBuffer));
+    // Reuse the persistent draw command buffer allocated in initVulkan.
+    VkCommandBuffer commandBuffer = draw_command_buffer_;
+    VK_CHECK_RESULT(vkResetCommandBuffer(commandBuffer, 0));
 
     VkCommandBufferBeginInfo cmdBufInfo =
         vks::initializers::commandBufferBeginInfo();
@@ -630,11 +640,7 @@ void vrglasses_for_robots::VulkanRenderer::drawTriangles(uint32_t width,
     submitWork(commandBuffer, queue);
 
     vkDeviceWaitIdle(device);
-
-    // submitWork waits on a fence (and we wait idle above), so the GPU is done
-    // with this buffer. Free it here: drawTriangles runs once per rendered pose,
-    // so without this the command pool leaks one primary buffer per frame.
-    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+    // No free here: draw_command_buffer_ is persistent and reset+reused next pose.
   }
 }
 
@@ -669,12 +675,9 @@ void vrglasses_for_robots::VulkanRenderer::saveImageDepthmap(uint32_t width, uin
   {
     // Do the actual blit from the offscreen image to our host visible
     // destination image
-    VkCommandBufferAllocateInfo cmdBufAllocateInfo =
-        vks::initializers::commandBufferAllocateInfo(
-            commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
-    VkCommandBuffer copyCmd;
-    VK_CHECK_RESULT(
-        vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, &copyCmd));
+    // Reuse the persistent copy command buffer allocated in initVulkan.
+    VkCommandBuffer copyCmd = copy_command_buffer_;
+    VK_CHECK_RESULT(vkResetCommandBuffer(copyCmd, 0));
     VkCommandBufferBeginInfo cmdBufInfo =
         vks::initializers::commandBufferBeginInfo();
     VK_CHECK_RESULT(vkBeginCommandBuffer(copyCmd, &cmdBufInfo));
@@ -736,11 +739,7 @@ void vrglasses_for_robots::VulkanRenderer::saveImageDepthmap(uint32_t width, uin
     VK_CHECK_RESULT(vkEndCommandBuffer(copyCmd));
 
     submitWork(copyCmd, queue);
-
-    // The copy is finished (submitWork waited on its fence). Free the command
-    // buffer now: saveImageDepthmap runs once per rendered pose, so otherwise the
-    // command pool leaks one primary buffer per frame.
-    vkFreeCommandBuffers(device, commandPool, 1, &copyCmd);
+    // No free here: copy_command_buffer_ is persistent and reset+reused next pose.
 
     // Get layout of the image (including row pitch)
     VkImageSubresource subResource{};
@@ -1431,6 +1430,8 @@ vrglasses_for_robots::VulkanRenderer::~VulkanRenderer() {
   vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
   vkDestroyPipeline(device, pipeline, nullptr);
   vkDestroyPipelineCache(device, pipelineCache, nullptr);
+  // draw_command_buffer_/copy_command_buffer_ are freed by destroying the pool.
+  vkDestroyFence(device, render_fence_, nullptr);
   vkDestroyCommandPool(device, commandPool, nullptr);
   for (auto shadermodule : shaderModules) {
     vkDestroyShaderModule(device, shadermodule, nullptr);
