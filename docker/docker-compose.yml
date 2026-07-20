@@ -1,0 +1,32 @@
+# Convenience services for building/running the two images.
+#   docker compose -f docker/docker-compose.yml build
+#   docker compose -f docker/docker-compose.yml run --rm ros2
+#
+# GPU passthrough uses the NVIDIA container runtime when available; without a GPU
+# the images fall back to Mesa lavapipe (VK_ICD_FILENAMES is set in the images).
+services:
+  standalone:
+    build:
+      context: ..
+      dockerfile: docker/standalone.Dockerfile
+    image: vkg:standalone
+
+  ros2:
+    build:
+      context: ..
+      dockerfile: docker/ros2.Dockerfile
+    image: vkg:ros2
+    environment:
+      - DISPLAY=${DISPLAY:-}
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    network_mode: host
+    # Uncomment for an NVIDIA GPU (needs nvidia-container-toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]

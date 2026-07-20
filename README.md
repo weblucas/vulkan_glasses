@@ -133,6 +133,38 @@ The install tree is self-contained in project artifacts (binaries, shaders,
 launchers). It still relies on the system-provided runtime libraries (OpenCV, HDF5,
 glog, gflags) and a working Vulkan driver being installed on the machine.
 
+## ROS2 node
+
+`ros2/vulkan_glasses_ros2/` is an ament_cmake package that wraps `vkg::render`
+and publishes rendered color/depth/semantic images + `CameraInfo` from camera
+odometry. It reuses the libraries in-tree (`add_subdirectory`), so a bare-checkout
+`colcon build` works in one step:
+
+```sh
+colcon build --paths ros2/vulkan_glasses_ros2
+source install/setup.bash
+ros2 launch vulkan_glasses_ros2 render.launch.py config:=<your params.yaml>
+```
+
+See `ros2/vulkan_glasses_ros2/README.md` for topics and parameters. ROS2 Humble
+is required — use the Docker image below if it isn't installed locally.
+
+## Docker
+
+```sh
+# ROS2 Humble image (builds the colcon overlay):
+docker build -f docker/ros2.Dockerfile -t vkg-ros2 .
+# non-ROS image (libraries + standalone apps):
+docker build -f docker/standalone.Dockerfile -t vkg .
+# or via compose:
+docker compose -f docker/docker-compose.yml build
+```
+
+Both images fall back to Mesa lavapipe for headless rendering when no GPU is
+passed through. A VS Code dev container (`.devcontainer/`, based on the Humble
+image) provides a ready-to-use environment for all of the above. `./build.sh
+{core|ros2|all}` is a single entrypoint that drives both build systems.
+
 ## Testing
 
 Unit tests live in `test/` and are built when `-DBUILD_TESTS=ON` is passed. The

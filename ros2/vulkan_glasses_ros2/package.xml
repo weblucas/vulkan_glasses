@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>vulkan_glasses_ros2</name>
+  <version>0.1.0</version>
+  <description>ROS2 node wrapping the vkg Vulkan renderer: renders color/depth/semantic
+    images from camera odometry.</description>
+  <maintainer email="weblucas@gmail.com">Lucas Teixeira</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+  <depend>ament_index_cpp</depend>
+
+  <!-- Non-ROS system dependencies pulled in by the vendored vkg libraries. -->
+  <depend>libopencv-dev</depend>
+  <depend>eigen</depend>
+  <depend>libvulkan-dev</depend>
+  <depend>libhdf5-dev</depend>
+  <depend>libglog-dev</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

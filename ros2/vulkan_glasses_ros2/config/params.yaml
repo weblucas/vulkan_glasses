@@ -1,0 +1,36 @@
+# Parameters for vkg_render_node. Paths point at the repo's bundled example;
+# override them for your dataset. Leave shader_folder empty to use the shaders
+# installed in the package share dir.
+vkg_render_node:
+  ros__parameters:
+    framerate: 20.0
+    camera_frame_id: "camera"
+
+    # Image size + pinhole intrinsics (must match your camera).
+    output_w: 752
+    output_h: 480
+    fx: 571.63
+    fy: 571.63
+    cx: 366.23
+    cy: 243.592
+    render_near: 0.1
+    render_far: 1000.0
+
+    # Orthographic mode (set ortho: true and ortho_width > 0 to enable).
+    ortho: false
+    ortho_width: 0.0
+
+    # Scene: either a model folder + list (+ optional scene pose file) ...
+    model_folder: ""
+    model_list_file: ""
+    model_pose_file: ""
+    # ... or a single mesh + texture.
+    mesh_obj_file: ""
+    texture_file: ""
+
+    # Empty -> use the shaders installed in the package share dir.
+    shader_folder: ""
+
+    # Body->camera extrinsic (identity = odometry already is the camera pose).
+    body_to_camera_translation: [0.0, 0.0, 0.0]
+    body_to_camera_quaternion_xyzw: [0.0, 0.0, 0.0, 1.0]

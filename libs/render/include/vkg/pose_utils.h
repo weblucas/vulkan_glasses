@@ -33,14 +33,20 @@ inline glm::mat4 conversionGlCv() {
 }
 
 // Model-view-projection for a camera whose body-to-world pose is
-// (position, orientation) in the world frame, given a projection matrix:
+// world frame, given a projection matrix and the camera's body-to-world
+// transform T_WC:
 //   mvp = projection * (CV->GL flip) * world_to_camera
+inline glm::mat4 computeMvp(const glm::mat4& projection, const glm::mat4& T_WC) {
+  return projection * conversionGlCv() * poseInverse(T_WC);
+}
+
+// Overload taking the camera pose as (position, orientation).
 inline glm::mat4 computeMvp(const glm::mat4& projection,
                             const glm::vec3& position,
                             const glm::quat& orientation) {
   glm::mat4 T_WC = glm::mat4_cast(orientation);
   T_WC[3] = glm::vec4(position, 1.0f);
-  return projection * conversionGlCv() * poseInverse(T_WC);
+  return computeMvp(projection, T_WC);
 }
 
 }  // namespace vkg

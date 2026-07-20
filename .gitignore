@@ -5,3 +5,7 @@ example/output_temp
 .idea
 
 .vscode/
+
+# Python bytecode
+__pycache__/
+*.pyc

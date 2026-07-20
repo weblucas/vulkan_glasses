@@ -1,0 +1,25 @@
+{
+  "name": "vulkan_glasses (ROS2 Humble)",
+  "build": {
+    "dockerfile": "../docker/ros2.Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/root/vkg",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/root/vkg,type=bind",
+  "runArgs": [
+    "--network=host"
+  ],
+  "containerEnv": {
+    "VK_ICD_FILENAMES": "/usr/share/vulkan/icd.d/lvp_icd.x86_64.json"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "ms-iot.vscode-ros"
+      ]
+    }
+  },
+  "postCreateCommand": "echo 'source /opt/ros/humble/setup.bash' >> ~/.bashrc"
+}

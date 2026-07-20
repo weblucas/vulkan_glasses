@@ -1,0 +1,11 @@
+# Keep the Docker build context small: exclude build outputs, installs, generated
+# datasets, and VCS. The images build from source (libs/apps + ros2 overlay).
+.git
+build
+build_*
+bin
+install
+log
+example/output_temp*
+**/*.h5
+.devcontainer
