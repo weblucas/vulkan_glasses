@@ -7,15 +7,15 @@ It is the same library but integrated with ros simulation. The scene definition 
 
 The core library requires:
 
-- CMake >= 3.14 and a C++17 compiler
+- CMake >= 3.21 and a C++17 compiler
 - Vulkan SDK / development files (`glslangValidator` is used to compile the shaders)
 - Eigen3
 - OpenCV (`core`, `highgui`, `imgproc`)
 - glog, gflags
 - glm
 
-The optional CSV renderer application (`BUILD_WITH_CSV_PROCESSOR`) and the `.h5`
-image viewer (`BUILD_WITH_H5_VIEWER`) additionally require HDF5.
+The optional CSV renderer application (`BUILD_CSV_RENDERER`) and the `.h5`
+image viewer (`BUILD_DATASET_VIEWER`) additionally require HDF5.
 
 On Ubuntu these can be installed with:
 
@@ -43,71 +43,90 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
 ```
 
-Useful options:
+The repo is organized so each piece builds independently:
 
-| Option                      | Default | Description                                  |
-|-----------------------------|---------|----------------------------------------------|
-| `BUILD_WITH_CSV_PROCESSOR`  | `OFF`   | Build the `vulkan_glasses_csv_renderer` app  |
-| `BUILD_WITH_H5_VIEWER`      | `OFF`   | Build the `vulkan_glasses_h5_viewer` app     |
-| `BUILD_TESTS`               | `OFF`   | Build the unit tests in `test/`              |
-| `COMPILE_SHADERS`           | `ON`    | Compile the GLSL shaders to SPIR-V           |
+```
+libs/render/    # vkg::render  — the Vulkan renderer library (needs Vulkan)
+libs/dataset/   # vkg::dataset — the .h5 dataset I/O library (no Vulkan)
+apps/csv_renderer/       # standalone CSV renderer  -> vkg_csv_renderer
+apps/vkg_dataset_viewer/ # standalone .h5 viewer    -> vkg_dataset_viewer
+```
 
-To also build the CSV renderer application:
+Build options (orthogonal — a library builds on its own; an app pulls in the
+libraries it needs):
+
+| Option                 | Default | Description                                      |
+|------------------------|---------|--------------------------------------------------|
+| `BUILD_RENDER_LIB`     | `ON`    | Build the render library `vkg::render`           |
+| `BUILD_DATASET_LIB`    | `ON`    | Build the dataset library `vkg::dataset`         |
+| `BUILD_CSV_RENDERER`   | `OFF`   | Build the `vkg_csv_renderer` app (needs both libs)|
+| `BUILD_DATASET_VIEWER` | `OFF`   | Build the `vkg_dataset_viewer` app (needs dataset)|
+| `BUILD_TESTS`          | `OFF`   | Build the unit tests in `test/`                  |
+
+Examples:
 
 ```sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_WITH_CSV_PROCESSOR=ON
-cmake --build build -j$(nproc)
+# just the libraries (installable / find_package-able), the default:
+cmake -S . -B build && cmake --build build -j$(nproc)
+
+# the CSV renderer application (auto-enables both libraries):
+cmake -S . -B build -DBUILD_CSV_RENDERER=ON && cmake --build build -j$(nproc)
+
+# the dataset library + viewer only, no Vulkan needed:
+cmake -S . -B build -DBUILD_RENDER_LIB=OFF -DBUILD_DATASET_VIEWER=ON \
+      && cmake --build build -j$(nproc)
 ```
 
-## Installing
+## Installing / consuming the libraries
 
-The install step copies the library, public headers and compiled shaders under
-`bin/` by default (the install prefix is set in `CMakeLists.txt`):
+Installing produces `find_package`-able CMake packages:
 
 ```sh
-cmake --install build
+cmake --install build --prefix /path/to/prefix
 ```
 
-This produces:
-
 ```
-bin/lib/libvulkan_glasses_lib.a
-bin/include/vulkan_glasses/*.h
-bin/shaders/*.spv
+<prefix>/lib/libvkg_render.a, libvkg_dataset.a
+<prefix>/lib/cmake/vkg_render/…, vkg_dataset/…    # find_package config
+<prefix>/include/vkg/*.h
+<prefix>/share/vkg/shaders/*.spv
 ```
 
-You can install elsewhere by overriding the prefix, e.g.
-`cmake --install build --prefix ./install`.
+Downstream projects then:
 
-### Installing both apps (self-contained)
+```cmake
+find_package(vkg_render REQUIRED)   # or vkg_dataset
+target_link_libraries(my_target PRIVATE vkg::render vkg::dataset)
+```
 
-To get a folder you can run the apps from directly, build with both apps enabled
-and install into `install/`:
+(The default prefix for a standalone build is `<repo>/bin`.)
+
+### Running the apps (self-contained)
+
+Build both apps and install into `install/`:
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-      -DBUILD_WITH_CSV_PROCESSOR=ON -DBUILD_WITH_H5_VIEWER=ON
+      -DBUILD_CSV_RENDERER=ON -DBUILD_DATASET_VIEWER=ON
 cmake --build build -j$(nproc)
 cmake --install build --prefix "$(pwd)/install"
 ```
 
-This produces a self-contained tree:
-
 ```
 install/
-├── vulkan_glasses_csv_renderer
-├── vulkan_glasses_h5_viewer
-├── run_csv_renderer.sh          # launcher: sets --shader_folder automatically
-├── run_h5_viewer.sh
+├── vkg_csv_renderer
+├── vkg_dataset_viewer
+├── run_csv_renderer.sh            # launcher: sets --shader_folder automatically
+├── run_vkg_dataset_viewer.sh
 └── shaders/*.spv
 ```
 
-Run the apps via the launcher scripts from any directory — they resolve the shader
-folder relative to their own location:
+Run via the launcher scripts from any directory — they resolve the shader folder
+relative to their own location:
 
 ```sh
 install/run_csv_renderer.sh --flagfile=example/vk_glasses_csv_flags.txt
-install/run_h5_viewer.sh --folder example/output_temp
+install/run_vkg_dataset_viewer.sh --folder example/output_temp
 ```
 
 The install tree is self-contained in project artifacts (binaries, shaders,
@@ -122,7 +141,7 @@ is also built, an `example_render_smoke` test renders the bundled example scene
 headless (requires a Vulkan driver):
 
 ```sh
-cmake -S . -B build -DBUILD_TESTS=ON -DBUILD_WITH_CSV_PROCESSOR=ON
+cmake -S . -B build -DBUILD_TESTS=ON -DBUILD_CSV_RENDERER=ON
 cmake --build build -j$(nproc)
 ctest --test-dir build --output-on-failure
 ```
@@ -130,7 +149,7 @@ ctest --test-dir build --output-on-failure
 ## Usage
 
 ```sh
-vulkan_glasses/bin$ ./vulkan_glasses_csv_renderer --flagfile=../example/vk_glasses_csv_flags.txt
+vulkan_glasses/bin$ ./vkg_csv_renderer --flagfile=../example/vk_glasses_csv_flags.txt
 ```
 
 ## Command-Line Flags for `vk_glasses_csv`
@@ -175,7 +194,7 @@ folder (or its `image_poses.csv`) first.
 
 ## H5 Viewer
 
-`vulkan_glasses_h5_viewer` browses a folder of `.h5` files produced by the CSV
+`vkg_dataset_viewer` browses a folder of `.h5` files produced by the CSV
 renderer. It shows, in a single 2×2 window, the RGB image, a color-mapped depth
 image (invalid/zero depth is drawn black), the semantics channel, and a text tile
 with per-frame metadata.
@@ -183,14 +202,14 @@ with per-frame metadata.
 Build it with:
 
 ```sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_WITH_H5_VIEWER=ON
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DATASET_VIEWER=ON
 cmake --build build -j$(nproc)
 ```
 
 Run it against an output folder:
 
 ```sh
-vulkan_glasses/bin$ ./vulkan_glasses_h5_viewer --folder ../example/output_temp
+vulkan_glasses/bin$ ./vkg_dataset_viewer --folder ../example/output_temp
 ```
 
 Navigation keys:
