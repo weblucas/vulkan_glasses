@@ -14,8 +14,9 @@
 #include <glm/gtx/string_cast.hpp>
 
 #include <csv_processor.h>
-#include <h5_dataset.h>
-#include <string_utils.h>
+#include <vkg/h5_dataset.h>
+#include <vkg/pose_utils.h>
+#include <vkg/string_utils.h>
 
 ///general arguments
 //poses of the images to be produced
@@ -144,7 +145,7 @@ bool CSVProcessor::initialization(
 
 void CSVProcessor::initVulkan()
 {
-    render_app = new vrglasses_for_robots::VulkanRenderer(w_,h_,FLAGS_near,FLAGS_far,FLAGS_shader_folder);
+    render_app = new vkg::VulkanRenderer(w_,h_,FLAGS_near,FLAGS_far,FLAGS_shader_folder);
 
 #if 1
     if(!FLAGS_model_folder.empty() && !FLAGS_model_list_file.empty())
@@ -440,40 +441,10 @@ void CSVProcessor::stopVulkan()
     render_app = nullptr;
 }
 
-/*!
- * @brief inverse orthonormal rotation + translation matrix (ridig-body)
- *
- * @code
- * X = | R  T |   X' = | R' -R'T |
- *     | 0  1 |        | 0     1 |
- * @endcode
- *
- */
-
-glm::mat4 pose_inverse(glm::mat4 in_mat)
-{
-    glm::mat3 rot = glm::mat3(in_mat);
-    glm::mat3 rott = glm::transpose(rot);
-    glm::mat4 result(rott);
-
-    glm::vec3 t = in_mat[3];
-    glm::vec3 t_out = -(rott * t);
-    result[3] = glm::vec4(t_out,1.0);
-    return result;
-}
-
 void CSVProcessor::glm2mvp(glm::vec3 position, glm::quat orientation,glm::mat4& mvp){
-    glm::mat4 T_WC = glm::mat4_cast(orientation);
-
-    T_WC[3] = glm::vec4(position,1.0);
-
-    glm::mat4 T_CW = pose_inverse(T_WC);
-    glm::mat4 conversion_gl_cv = glm::mat4(1,0,0,0,
-                                           0,-1,0,0,
-                                           0,0,-1,0,
-                                           0,0,0,1);
-    mvp = projection_matrix_ * conversion_gl_cv * T_CW ;
-
+    // Shared pose->MVP math (rigid inverse + CV<->GL axis flip) lives in
+    // vkg/pose_utils.h so the renderer app and the ROS2 node stay in sync.
+    mvp = vkg::computeMvp(projection_matrix_, position, orientation);
 }
 
 void CSVProcessor::renderPose(glm::vec3 position, glm::quat orientation, cv::Mat & result_depth_map, cv::Mat & result_attribute_map)

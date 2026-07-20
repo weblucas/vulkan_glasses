@@ -16,7 +16,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
 
-#include <vulkan_renderer.h>
+#include <vkg/vulkan_renderer.h>
 
 class CSVProcessor {
  public:
@@ -45,7 +45,7 @@ private:
 
     //renderer
 
-    vrglasses_for_robots::VulkanRenderer* render_app;
+    vkg::VulkanRenderer* render_app;
 
     void initIntrinsics();
 

@@ -31,7 +31,7 @@
 typedef std::vector<float> VecQuality;
 
 #include <vulkan/vulkan.h>
-#include <VulkanTools.h>
+#include <vkg/VulkanTools.h>
 
 //#define DEBUG (!NDEBUG) //enable validation layers
 
@@ -88,7 +88,7 @@ namespace std {
     };
 }
 
-namespace vrglasses_for_robots {
+namespace vkg {
 
 struct ThreeDModel{
   std::string name;

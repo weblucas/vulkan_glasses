@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+
+# Transitive public dependencies of vkg::render.
+include(CMakeFindDependencyMacro)
+find_dependency(OpenCV)
+find_dependency(Vulkan)
+find_dependency(Eigen3)
+
+include("${CMAKE_CURRENT_LIST_DIR}/vkg_renderTargets.cmake")
+
+check_required_components(vkg_render)

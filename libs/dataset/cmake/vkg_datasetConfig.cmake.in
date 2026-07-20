@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+
+# Public dependency of vkg::dataset (its headers use cv::Mat). HDF5 is a private
+# implementation detail but a static-library consumer must still link it.
+include(CMakeFindDependencyMacro)
+find_dependency(OpenCV)
+find_dependency(HDF5 COMPONENTS C)
+
+include("${CMAKE_CURRENT_LIST_DIR}/vkg_datasetTargets.cmake")
+
+check_required_components(vkg_dataset)

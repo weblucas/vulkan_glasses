@@ -1,29 +1,13 @@
+# Standalone CSV renderer. Reuses the two libraries via their namespaced targets;
+# Vulkan/OpenCV/Eigen include+link flow transitively from vkg::render.
+find_package(OpenCV REQUIRED core highgui imgproc)
 
+add_executable(vkg_csv_renderer src/csv_main.cc src/csv_processor.cc)
+target_include_directories(vkg_csv_renderer PRIVATE include)
+target_link_libraries(vkg_csv_renderer PRIVATE
+    vkg::render vkg::dataset glog gflags ${OpenCV_LIBRARIES})
 
-
-
-
-
-
-find_package( Eigen3 REQUIRED )
-find_package( OpenCV REQUIRED core highgui imgproc )
-find_package( Vulkan REQUIRED )
-
-
-include_directories( ${EIGEN3_INCLUDE_DIR} )
-include_directories( ${OpenCV_INCLUDE_DIRS} )
-
-
-
-
-include_directories( include )
-
-
-add_executable(${PROJECT_NAME}_csv_renderer  "src/csv_main.cc"  "src/csv_processor.cc")
-target_include_directories(${PROJECT_NAME}_csv_renderer PRIVATE ${CMAKE_SOURCE_DIR}/lib/include)
-target_link_libraries(${PROJECT_NAME}_csv_renderer glog gflags ${PROJECT_NAME}_h5_dataset ${OpenCV_LIBRARIES} ${Vulkan_LIBRARY} ${PROJECT_NAME}_lib)
-
-install(TARGETS ${PROJECT_NAME}_csv_renderer
-    RUNTIME DESTINATION .)
-
-
+# Install the app next to the compiled shaders it needs (the launcher passes
+# --shader_folder=<dir>/shaders). Shader spv paths come from the render lib.
+install(TARGETS vkg_csv_renderer RUNTIME DESTINATION .)
+install(FILES ${VKG_SHADER_SPV_FILES} DESTINATION shaders)

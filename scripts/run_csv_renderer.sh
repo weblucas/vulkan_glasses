@@ -6,4 +6,4 @@ set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # --shader_folder is placed last so it wins over any value set earlier (e.g. a
 # --shader_folder inside a --flagfile), pointing at the shaders bundled here.
-exec "$DIR/vulkan_glasses_csv_renderer" "$@" --shader_folder="$DIR/shaders"
+exec "$DIR/vkg_csv_renderer" "$@" --shader_folder="$DIR/shaders"

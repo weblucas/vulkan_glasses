@@ -6,7 +6,7 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#include <VulkanTools.h>
+#include <vkg/VulkanTools.h>
 
 namespace vks
 {

@@ -1,28 +1,19 @@
-// Unit tests for the camera-pose geometry used by the CSV renderer.
-//
-// These validate the exact math in apps/csv_renderer/src/csv_processor.cc:
-//   * pose_inverse()  (rigid-body transform inverse, line ~285)
-//   * the OpenCV->OpenGL axis conversion applied in glm2mvp()
-// The code is small and GPU-independent, so it is reproduced here verbatim and
-// checked against glm's own routines and against mathematical invariants.
+// Unit tests for the camera-pose geometry shared by the renderer app and the
+// ROS2 node. These validate the actual code in libs/render/include/vkg/pose_utils.h:
+//   * vkg::poseInverse()   (rigid-body transform inverse)
+//   * vkg::conversionGlCv() (OpenCV->OpenGL axis flip used in computeMvp)
+// GPU-independent (glm only), checked against glm's routines and math invariants.
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <vkg/pose_utils.h>
+
 #include "test_common.h"
 
-// Mirror of CSVProcessor's free function pose_inverse() (csv_processor.cc).
-static glm::mat4 pose_inverse(glm::mat4 in_mat) {
-    glm::mat3 rot = glm::mat3(in_mat);
-    glm::mat3 rott = glm::transpose(rot);
-    glm::mat4 result(rott);
-
-    glm::vec3 t = in_mat[3];
-    glm::vec3 t_out = -(rott * t);
-    result[3] = glm::vec4(t_out, 1.0);
-    return result;
-}
+// Test the real shared implementation.
+static glm::mat4 pose_inverse(glm::mat4 in_mat) { return vkg::poseInverse(in_mat); }
 
 static void check_matrices_equal(const glm::mat4& a, const glm::mat4& b,
                                  double eps = 1e-4) {

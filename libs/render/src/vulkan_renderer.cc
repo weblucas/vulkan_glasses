@@ -1,19 +1,19 @@
-#include <vulkan_renderer.h>
+#include <vkg/vulkan_renderer.h>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+#include <vkg/stb_image.h>
 
 #define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
+#include <vkg/tiny_obj_loader.h>
 
-#include <string_utils.h>
+#include <vkg/string_utils.h>
 #include <filesystem>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <opencv2/imgproc.hpp>
 #include <unordered_map>
 
-uint32_t vrglasses_for_robots::VulkanRenderer::getMemoryTypeIndex(
+uint32_t vkg::VulkanRenderer::getMemoryTypeIndex(
     uint32_t typeBits, VkMemoryPropertyFlags properties) {
   VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
   vkGetPhysicalDeviceMemoryProperties(physicalDevice, &deviceMemoryProperties);
@@ -31,7 +31,7 @@ uint32_t vrglasses_for_robots::VulkanRenderer::getMemoryTypeIndex(
   throw std::runtime_error("could not find a suitable Vulkan memory type");
 }
 
-VkResult vrglasses_for_robots::VulkanRenderer::createBuffer(
+VkResult vkg::VulkanRenderer::createBuffer(
     VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags,
     VkBuffer *buffer, VkDeviceMemory *memory, VkDeviceSize size, void *data) {
   // Create the buffer handle
@@ -61,7 +61,7 @@ VkResult vrglasses_for_robots::VulkanRenderer::createBuffer(
   return VK_SUCCESS;
 }
 
-void vrglasses_for_robots::VulkanRenderer::submitWork(VkCommandBuffer cmdBuffer,
+void vkg::VulkanRenderer::submitWork(VkCommandBuffer cmdBuffer,
                                                       VkQueue queue) {
   VkSubmitInfo submitInfo = vks::initializers::submitInfo();
   submitInfo.commandBufferCount = 1;
@@ -73,7 +73,7 @@ void vrglasses_for_robots::VulkanRenderer::submitWork(VkCommandBuffer cmdBuffer,
   VK_CHECK_RESULT(vkWaitForFences(device, 1, &render_fence_, VK_TRUE, UINT64_MAX));
 }
 
-void vrglasses_for_robots::VulkanRenderer::initVulkan(bool enableValidation) {
+void vkg::VulkanRenderer::initVulkan(bool enableValidation) {
   VkApplicationInfo appInfo = {};
   appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   appInfo.pApplicationName = "Mesh2Depth";
@@ -224,7 +224,7 @@ void vrglasses_for_robots::VulkanRenderer::initVulkan(bool enableValidation) {
   VK_CHECK_RESULT(vkCreateFence(device, &fenceInfo, nullptr, &render_fence_));
 }
 
-void vrglasses_for_robots::VulkanRenderer::buildRenderPass(uint32_t width,
+void vkg::VulkanRenderer::buildRenderPass(uint32_t width,
                                                            uint32_t height) {
   // vks::tools::getSupportedDepthFormat(physicalDevice, &depthFormat);
   {
@@ -562,7 +562,7 @@ void vrglasses_for_robots::VulkanRenderer::buildRenderPass(uint32_t width,
 
 }
 
-void vrglasses_for_robots::VulkanRenderer::drawTriangles(uint32_t width,
+void vkg::VulkanRenderer::drawTriangles(uint32_t width,
                                                          uint32_t height) {
   /*
           Command buffer creation
@@ -655,7 +655,7 @@ void vrglasses_for_robots::VulkanRenderer::drawTriangles(uint32_t width,
 // http://lists.apple.com/archives/mac-opengl/2005/Oct/msg00063.html
 // -------------------------------
 
-float vrglasses_for_robots::VulkanRenderer::convertZbufferToDepth(
+float vkg::VulkanRenderer::convertZbufferToDepth(
     float near, float far, float zValue) {
   // zValue is the Vulkan depth-buffer value in [0,1] (near -> 0, far -> 1, see
   // buildPerpectiveProjection). Convert it to the [-1,1] range the perspective
@@ -664,7 +664,7 @@ float vrglasses_for_robots::VulkanRenderer::convertZbufferToDepth(
   return 2.0 * near * far / (far + near - z * (far - near));
 }
 
-void vrglasses_for_robots::VulkanRenderer::saveImageDepthmap(uint32_t width, uint32_t height, cv::OutputArray result_depth_map,
+void vkg::VulkanRenderer::saveImageDepthmap(uint32_t width, uint32_t height, cv::OutputArray result_depth_map,
     cv::OutputArray result_attribute_map) {
   result_depth_map.create(height, width, CV_32F);
   result_attribute_map.create(height, width, CV_8UC4);
@@ -847,7 +847,7 @@ void vrglasses_for_robots::VulkanRenderer::saveImageDepthmap(uint32_t width, uin
   }
 }
 
-void vrglasses_for_robots::VulkanRenderer::setupDescriptorPool() {
+void vkg::VulkanRenderer::setupDescriptorPool() {
   // Example uses one ubo and one image sampler
   std::vector<VkDescriptorPoolSize> poolSizes = {
       vks::initializers::descriptorPoolSize(
@@ -861,7 +861,7 @@ void vrglasses_for_robots::VulkanRenderer::setupDescriptorPool() {
                                          &descriptorPool));
 }
 
-void vrglasses_for_robots::VulkanRenderer::setupDescriptorSet(Texture2D &tex) {
+void vkg::VulkanRenderer::setupDescriptorSet(Texture2D &tex) {
   VkDescriptorSetAllocateInfo allocInfo =
       vks::initializers::descriptorSetAllocateInfo(descriptorPool,
                                                    &descriptorSetLayout, 1);
@@ -903,7 +903,7 @@ void vrglasses_for_robots::VulkanRenderer::setupDescriptorSet(Texture2D &tex) {
                          writeDescriptorSets.data(), 0, NULL);
 }
 
-void vrglasses_for_robots::VulkanRenderer::createBuffer(
+void vkg::VulkanRenderer::createBuffer(
     VkDeviceSize size, VkBufferUsageFlags usage,
     VkMemoryPropertyFlags properties, VkBuffer &buffer,
     VkDeviceMemory &bufferMemory) {
@@ -934,7 +934,7 @@ void vrglasses_for_robots::VulkanRenderer::createBuffer(
   vkBindBufferMemory(device, buffer, bufferMemory, 0);
 }
 
-uint32_t vrglasses_for_robots::VulkanRenderer::findMemoryType(
+uint32_t vkg::VulkanRenderer::findMemoryType(
     uint32_t typeFilter, VkMemoryPropertyFlags properties) {
   VkPhysicalDeviceMemoryProperties memProperties;
   vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -949,7 +949,7 @@ uint32_t vrglasses_for_robots::VulkanRenderer::findMemoryType(
   throw std::runtime_error("failed to find suitable memory type!");
 }
 
-void vrglasses_for_robots::VulkanRenderer::createTextureImage(Texture2D &tex,std::string filename_texture) {
+void vkg::VulkanRenderer::createTextureImage(Texture2D &tex,std::string filename_texture) {
   int texWidth, texHeight, texChannels;
 
   stbi_info(filename_texture.c_str(),&texWidth, &texHeight,
@@ -1032,7 +1032,7 @@ void vrglasses_for_robots::VulkanRenderer::createTextureImage(Texture2D &tex,std
   }
 }
 
-void vrglasses_for_robots::VulkanRenderer::copyBufferToImage(VkBuffer buffer,
+void vkg::VulkanRenderer::copyBufferToImage(VkBuffer buffer,
                                                              VkImage image,
                                                              uint32_t width,
                                                              uint32_t height) {
@@ -1055,7 +1055,7 @@ void vrglasses_for_robots::VulkanRenderer::copyBufferToImage(VkBuffer buffer,
   endSingleTimeCommands(commandBuffer);
 }
 
-void vrglasses_for_robots::VulkanRenderer::createImage(
+void vkg::VulkanRenderer::createImage(
     uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
     VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage &image,
     VkDeviceMemory &imageMemory) {
@@ -1095,7 +1095,7 @@ void vrglasses_for_robots::VulkanRenderer::createImage(
   vkBindImageMemory(device, image, imageMemory, 0);
 }
 
-void vrglasses_for_robots::VulkanRenderer::transitionImageLayout(
+void vkg::VulkanRenderer::transitionImageLayout(
     VkImage image, VkFormat format, VkImageLayout oldLayout,
     VkImageLayout newLayout) {
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
@@ -1141,7 +1141,7 @@ void vrglasses_for_robots::VulkanRenderer::transitionImageLayout(
 }
 
 
-VkImageView vrglasses_for_robots::VulkanRenderer::createImageView(
+VkImageView vkg::VulkanRenderer::createImageView(
     VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
   VkImageViewCreateInfo viewInfo = {};
   viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1164,7 +1164,7 @@ VkImageView vrglasses_for_robots::VulkanRenderer::createImageView(
 
 
 VkCommandBuffer
-vrglasses_for_robots::VulkanRenderer::beginSingleTimeCommands() {
+vkg::VulkanRenderer::beginSingleTimeCommands() {
   VkCommandBufferAllocateInfo allocInfo = {};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -1183,7 +1183,7 @@ vrglasses_for_robots::VulkanRenderer::beginSingleTimeCommands() {
   return commandBuffer;
 }
 
-void vrglasses_for_robots::VulkanRenderer::endSingleTimeCommands(
+void vkg::VulkanRenderer::endSingleTimeCommands(
     VkCommandBuffer commandBuffer) {
   VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
 
@@ -1198,7 +1198,7 @@ void vrglasses_for_robots::VulkanRenderer::endSingleTimeCommands(
   vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 
-void vrglasses_for_robots::VulkanRenderer::copyBuffer(VkBuffer srcBuffer,
+void vkg::VulkanRenderer::copyBuffer(VkBuffer srcBuffer,
                                                       VkBuffer dstBuffer,
                                                       VkDeviceSize size) {
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
@@ -1210,7 +1210,7 @@ void vrglasses_for_robots::VulkanRenderer::copyBuffer(VkBuffer srcBuffer,
   endSingleTimeCommands(commandBuffer);
 }
 
-void vrglasses_for_robots::VulkanRenderer::createVertexBuffer() {
+void vkg::VulkanRenderer::createVertexBuffer() {
   VkDeviceSize bufferSize = sizeof(vertices_[0]) * vertices_.size();
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
@@ -1235,7 +1235,7 @@ void vrglasses_for_robots::VulkanRenderer::createVertexBuffer() {
   vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
-void vrglasses_for_robots::VulkanRenderer::createIndexBuffer() {
+void vkg::VulkanRenderer::createIndexBuffer() {
   VkDeviceSize bufferSize = sizeof(indices_[0]) * indices_.size();
 
   VkBuffer stagingBuffer;
@@ -1261,14 +1261,14 @@ void vrglasses_for_robots::VulkanRenderer::createIndexBuffer() {
   vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
-void vrglasses_for_robots::VulkanRenderer::releaseMeshDataBuffers() {
+void vkg::VulkanRenderer::releaseMeshDataBuffers() {
   vkDestroyBuffer(device, vertexBuffer, nullptr);
   vkFreeMemory(device, vertexMemory, nullptr);
   vkDestroyBuffer(device, indexBuffer, nullptr);
   vkFreeMemory(device, indexMemory, nullptr);
 }
 
-vrglasses_for_robots::VulkanRenderer::VulkanRenderer(
+vkg::VulkanRenderer::VulkanRenderer(
     uint32_t width, uint32_t height, float near, float far,
     const std::string &shader_spv_folder)
     : width_(width), height_(height), far_(far), near_(near) {
@@ -1277,9 +1277,9 @@ vrglasses_for_robots::VulkanRenderer::VulkanRenderer(
   std::filesystem::path shader_folder =
       std::filesystem::path(shader_spv_folder);
   shader_vert_spv_ =
-      (shader_folder / "vrglasses4robots_shader.vert.spv").string();
+      (shader_folder / "vkg_shader.vert.spv").string();
   shader_frag_spv_ =
-      (shader_folder / "vrglasses4robots_shader.frag.spv").string();
+      (shader_folder / "vkg_shader.frag.spv").string();
 
 
   initVulkan(true);
@@ -1289,7 +1289,7 @@ vrglasses_for_robots::VulkanRenderer::VulkanRenderer(
   vkQueueWaitIdle(queue);
 }
 
-void vrglasses_for_robots::VulkanRenderer::buildPerpectiveProjection(
+void vkg::VulkanRenderer::buildPerpectiveProjection(
     glm::mat4 &matPerspective, int img_width, int img_height, float alpha,
     float beta, float skew, float u0, float v0, float near, float far) {
     // These parameters define the final viewport that is rendered into by the
@@ -1349,7 +1349,7 @@ void vrglasses_for_robots::VulkanRenderer::buildPerpectiveProjection(
     matPerspective[3][2] = 0.5f * matPerspective[3][2] + 0.5f * matPerspective[3][3];
 }
 
-void vrglasses_for_robots::VulkanRenderer::buildOrthographicProjection(
+void vkg::VulkanRenderer::buildOrthographicProjection(
     glm::mat4 & orthographic_projection_matrix, int width, int height, float near, float far) {
     std::cout << "Ortho Img Callback" << std::endl;
 
@@ -1362,7 +1362,7 @@ void vrglasses_for_robots::VulkanRenderer::buildOrthographicProjection(
     buildOrthographicProjection(orthographic_projection_matrix,left, right, bottom, top, near, far);
 }
 
-void vrglasses_for_robots::VulkanRenderer::buildOrthographicProjection(
+void vkg::VulkanRenderer::buildOrthographicProjection(
     glm::mat4 & orthographic_projection_matrix, float left, float right, float bottom, float top, float near, float far) {
 
     glm::mat4 ortho;
@@ -1381,11 +1381,11 @@ void vrglasses_for_robots::VulkanRenderer::buildOrthographicProjection(
 }
 
 
-void vrglasses_for_robots::VulkanRenderer::setCamera(glm::mat4 mvp) {
+void vkg::VulkanRenderer::setCamera(glm::mat4 mvp) {
   vp_cv_ = mvp;
 }
 
-void vrglasses_for_robots::VulkanRenderer::renderMesh(
+void vkg::VulkanRenderer::renderMesh(
     cv::Mat &result_depth_map, cv::Mat &result_attribute_map) {
 
   drawTriangles(width_, height_);
@@ -1397,7 +1397,7 @@ void vrglasses_for_robots::VulkanRenderer::renderMesh(
   // releaseMeshDataBuffers();
 }
 
-vrglasses_for_robots::VulkanRenderer::~VulkanRenderer() {
+vkg::VulkanRenderer::~VulkanRenderer() {
 
   vkDestroyBuffer(device, vertexBuffer, nullptr);
   vkFreeMemory(device, vertexMemory, nullptr);
@@ -1449,7 +1449,7 @@ vrglasses_for_robots::VulkanRenderer::~VulkanRenderer() {
   vkDestroyInstance(instance, nullptr);
 }
 
-bool vrglasses_for_robots::VulkanRenderer::loadMesh(
+bool vkg::VulkanRenderer::loadMesh(
     const std::string &filename_model_obj,
     const std::string &filename_model_tex) {
 
@@ -1477,7 +1477,7 @@ bool vrglasses_for_robots::VulkanRenderer::loadMesh(
   return true;
 }
 
-bool vrglasses_for_robots::VulkanRenderer::loadMeshs(
+bool vkg::VulkanRenderer::loadMeshs(
     const std::string &model_folder, const std::string &model_list) {
 
   std::filesystem::path folder = std::filesystem::path(model_folder);
@@ -1549,7 +1549,7 @@ bool vrglasses_for_robots::VulkanRenderer::loadMeshs(
   return true;
 }
 
-bool vrglasses_for_robots::VulkanRenderer::loadVertex(const size_t model_idx) {
+bool vkg::VulkanRenderer::loadVertex(const size_t model_idx) {
 
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
@@ -1600,7 +1600,7 @@ bool vrglasses_for_robots::VulkanRenderer::loadVertex(const size_t model_idx) {
   return true;
 }
 
-void vrglasses_for_robots::VulkanRenderer::copyVertex() {
+void vkg::VulkanRenderer::copyVertex() {
 
   std::vector<Vertex> &vertices = vertices_;
   std::vector<uint32_t> &indices = indices_;
@@ -1690,7 +1690,7 @@ glm::mat4 parsePose(std::string pose_text) {
   return result;
 }
 
-bool vrglasses_for_robots::VulkanRenderer::loadScene(
+bool vkg::VulkanRenderer::loadScene(
     const std::string &scene_file) {
 
   if (std::filesystem::exists(scene_file)) {
@@ -1722,7 +1722,7 @@ bool vrglasses_for_robots::VulkanRenderer::loadScene(
   }
   return true;
 }
-void vrglasses_for_robots::VulkanRenderer::noFileScene() {
+void vkg::VulkanRenderer::noFileScene() {
 
   for (size_t idx = 0; idx < models_.size(); idx++) {
     scene_items_.push_back(SceneItem());

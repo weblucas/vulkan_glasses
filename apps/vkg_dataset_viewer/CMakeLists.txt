@@ -1,9 +1,8 @@
-find_package( OpenCV REQUIRED core highgui imgproc )
+# Standalone .h5 dataset viewer. Only needs the dataset library + OpenCV highgui.
+find_package(OpenCV REQUIRED core highgui imgproc)
 
-include_directories( ${OpenCV_INCLUDE_DIRS} )
+add_executable(vkg_dataset_viewer src/vkg_dataset_viewer_main.cc)
+target_link_libraries(vkg_dataset_viewer PRIVATE
+    vkg::dataset glog gflags ${OpenCV_LIBRARIES})
 
-add_executable(${PROJECT_NAME}_h5_viewer "src/h5_viewer_main.cc")
-target_link_libraries(${PROJECT_NAME}_h5_viewer glog gflags ${PROJECT_NAME}_h5_dataset ${OpenCV_LIBRARIES})
-
-install(TARGETS ${PROJECT_NAME}_h5_viewer
-    RUNTIME DESTINATION .)
+install(TARGETS vkg_dataset_viewer RUNTIME DESTINATION .)

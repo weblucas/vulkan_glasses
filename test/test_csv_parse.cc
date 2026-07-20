@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include <string_utils.h>
+#include <vkg/string_utils.h>
 
 #include "test_common.h"
 

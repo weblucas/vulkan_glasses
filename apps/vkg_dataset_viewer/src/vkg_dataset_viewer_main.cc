@@ -14,7 +14,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 
-#include <h5_dataset.h>
+#include <vkg/h5_dataset.h>
 
 DEFINE_string(folder, "", "folder containing the .h5 files to browse (required)");
 DEFINE_string(pose_file, "",
